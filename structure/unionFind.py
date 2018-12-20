@@ -1,3 +1,4 @@
+import random
 import unittest
 
 
@@ -25,10 +26,12 @@ class QuickFind(UnionFind):
 
 	def __init__(self):
 		self._nodes = {}
+		self._group_count = 0
 
 	def add_node(self, id_num, data):
 		node = Node(id_num, data)
 		self._nodes[id_num] = node
+		self._group_count += 1
 
 	def find(self, id_num):
 		if id_num > len(self._nodes):
@@ -43,19 +46,22 @@ class QuickFind(UnionFind):
 		for key, node in self._nodes.items():
 			if node.group_id == node_1:
 				node.group_id = node_2
+		self._group_count -= 1
 
-	def __getitem__(self, item):
-		return self._nodes[item]
+	def group_count(self):
+		return self._group_count
 
 
 class QuickUnion(UnionFind):
 
 	def __init__(self):
 		self._nodes = {}
+		self._group_count = 0
 
 	def add_node(self, id_num, data):
 		node = ForestTreeNode(id_num, id_num, data)
 		self._nodes[id_num] = node
+		self._group_count += 1
 
 	def find(self, id_num):
 		return self._find_root(id_num).group_id
@@ -66,6 +72,10 @@ class QuickUnion(UnionFind):
 		if root_1.group_id == root_2.group_id:
 			return
 		root_1.parent = root_2.group_id
+		self._group_count -= 1
+
+	def group_count(self):
+		return self._group_count
 
 	def _find_root(self, id_num):
 		current = self._nodes[id_num]
@@ -97,28 +107,51 @@ class BalancedQuickUnion(QuickUnion):
 		else:
 			root_1.parent = root_2.group_id
 			self._counts[root_2.group_id] += root_1_size
+		self._group_count -= 1
+
+
+def _compressed_find_root(self, id_num):
+	current = self._nodes[id_num]
+	to_link = []
+	while current.group_id != self._nodes[current.parent].group_id:
+		to_link.append(current)
+		current = self._nodes[current.parent]
+	for node in to_link:
+		node.parent = current.group_id
+	return current
+
+
+class PathCompressedQuickUnion(QuickUnion):
+
+	def __init__(self):
+		QuickUnion.__init__(self)
+
+	_find_root = _compressed_find_root
+
+
+class PathCompressedBalancedQuickUnion(BalancedQuickUnion):
+
+	def __init__(self):
+		BalancedQuickUnion.__init__(self)
+
+	_find_root = _compressed_find_root
 
 
 class UnionFindTest:
 
-	def test_ungrouped_find(self):
+	def test_erdos_renyi(self):
 		finder = self._get_union_find()
-		for i in range(10000):
+		n = 10000
+		for i in range(n):
 			finder.add_node(i, i)
-		for i in range(10000):
-			self.assertEqual(i, finder.find(i), "Failed to return the right group id")
-
-	def test_union(self):
-		finder = self._get_union_find()
-		for i in range(10000):
-			finder.add_node(i, i)
-		finder.union(1, 3)
-		finder.union(2, 4)
-		finder.union(2, 3)
-		finder.union(5, 8)
-		self.assertTrue(finder.connected(1, 3))
-		self.assertTrue(finder.connected(1, 2))
-		self.assertFalse(finder.connected(1, 5))
+		random.seed(n)
+		while finder.group_count() != 1:
+			id_1 = random.randint(0, n - 1)
+			id_2 = random.randint(0, n - 1)
+			if not finder.connected(id_1, id_2):
+				finder.union(id_1, id_2)
+		for i in range(n):
+			self.assertTrue(finder.connected(0, i))
 
 
 class QuickFindTest(unittest.TestCase, UnionFindTest):
@@ -137,3 +170,15 @@ class BalancedQuickUnionTest(unittest.TestCase, UnionFindTest):
 
 	def _get_union_find(self):
 		return BalancedQuickUnion()
+
+
+class PathCompressedQuickUnionTest(unittest.TestCase, UnionFindTest):
+
+	def _get_union_find(self):
+		return PathCompressedQuickUnion()
+
+
+class PathCompressedBalancedQuickUnionTest(unittest.TestCase, UnionFindTest):
+
+	def _get_union_find(self):
+		return PathCompressedBalancedQuickUnion()
