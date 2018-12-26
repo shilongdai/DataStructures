@@ -141,7 +141,7 @@ class UnionFindTest:
 
 	def test_erdos_renyi(self):
 		finder = self._get_union_find()
-		n = 10000
+		n = 100000
 		for i in range(n):
 			finder.add_node(i, i)
 		random.seed(n)
