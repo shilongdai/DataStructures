@@ -75,6 +75,7 @@ def _merge(input_array, aux, low, mid, high):
 			a_pos += 1
 
 
+# TODO: implement k-way and linked list merge sort
 def merge_sort(input_array):
 	original = input_array
 	segment_size = 16
@@ -90,7 +91,7 @@ def merge_sort(input_array):
 	_range_insertion_sort(input_array, start, length)
 
 	aux = [None for i in range(length)]
-	while segment_size < len(input_array):
+	while segment_size < length:
 		start = 0
 		end = segment_size * 2
 		aux, input_array = input_array, aux
@@ -104,6 +105,69 @@ def merge_sort(input_array):
 		segment_size = segment_size * 2
 	for i in range(length):
 		original[i] = input_array[i]
+
+
+# TODO: apply performance tricks to smaller sized chunks
+def natural_merge_sort(array):
+	length = len(array)
+	aux = [None for i in range(length)]
+	while True:
+		start = 0
+		mid = 1
+		merge_count = 0
+		while start < length:
+			while mid < length:
+				if array[mid] < array[mid - 1]:
+					break
+				mid += 1
+			if mid == length:
+				break
+			end = mid + 1
+			while end < length:
+				if array[end] < array[end - 1]:
+					break
+				end += 1
+			for i in range(start, end):
+				aux[i] = array[i]
+			_merge(array, aux, start, mid, end)
+			merge_count += 1
+			start = end
+			mid = start + 1
+		if merge_count == 0:
+			break
+
+
+def _partition(array, low, high):
+	lt = low + 1
+	gt = high - 1
+	spliter = array[low]
+	while True:
+		while array[lt] <= spliter:
+			lt += 1
+			if lt >= high or array[lt] == spliter:
+				break
+		while array[gt] >= spliter:
+			gt -= 1
+			if gt < low or array[gt] == spliter:
+				break
+		if lt >= gt:
+			break
+		exchange(array, lt, gt)
+	exchange(array, low, gt)
+	return gt
+
+
+def _quick_sort_recursive(array, low, high):
+	if low >= high - 1:
+		return
+	middle = _partition(array, low, high)
+	_quick_sort_recursive(array, low, middle)
+	_quick_sort_recursive(array, middle + 1, high)
+
+
+def quick_sort(array):
+	random.shuffle(array)
+	_quick_sort_recursive(array, 0, len(array))
 
 
 class SortingTest:
@@ -142,3 +206,15 @@ class MergeSortTest(unittest.TestCase, SortingTest):
 
 	def _get_sorting_algorithm(self):
 		return merge_sort
+
+
+class NaturalMergeSortTest(unittest.TestCase, SortingTest):
+
+	def _get_sorting_algorithm(self):
+		return natural_merge_sort
+
+
+class QuickSortTest(unittest.TestCase, SortingTest):
+
+	def _get_sorting_algorithm(self):
+		return quick_sort
