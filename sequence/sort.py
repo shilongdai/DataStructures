@@ -1,4 +1,6 @@
+import functools
 import random
+import timeit
 import unittest
 
 
@@ -173,6 +175,30 @@ def quick_sort(array):
 	_quick_sort_recursive(array, 0, len(array))
 
 
+def doubling_test(alg1, start_size=16, sample_size=5):
+	to_sort = []
+	for i in range(start_size):
+		to_sort.append(random.randint(0, start_size))
+	prev_time = 0
+	avg = 0
+	while True:
+		time_sum = 0
+		for i in range(sample_size):
+			timer = timeit.Timer(functools.partial(alg1, to_sort))
+			time_sum += timer.timeit(1)
+		avg = time_sum / sample_size
+		compare_to_prev = 0
+		if prev_time != 0:
+			compare_to_prev = avg / prev_time
+		print("Current Size: {}, Sample Size: {}, Avg Time: {}, {} divided by previous".format(start_size, sample_size,
+		                                                                                       avg, compare_to_prev))
+		prev_time = avg
+		start_size *= 2
+		to_sort.clear()
+		for i in range(start_size):
+			to_sort.append(random.randint(0, start_size))
+
+
 class SortingTest:
 
 	def test_sort(self):
@@ -221,3 +247,7 @@ class QuickSortTest(unittest.TestCase, SortingTest):
 
 	def get_sorter(self):
 		return quick_sort
+
+
+if __name__ == "__main__":
+	doubling_test(quick_sort, sample_size=1)
