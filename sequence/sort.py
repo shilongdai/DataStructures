@@ -158,7 +158,8 @@ def _partition(array, low, high):
 
 
 def _quick_sort_recursive(array, low, high):
-	if low >= high - 1:
+	if high - low < 16:
+		_range_insertion_sort(array, low, high)
 		return
 	middle = _partition(array, low, high)
 	_quick_sort_recursive(array, low, middle)
