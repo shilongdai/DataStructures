@@ -103,8 +103,9 @@ def merge_sort(input_array):
 		final_mid = start + segment_size
 		_merge(input_array, aux, start, final_mid, length)
 		segment_size = segment_size * 2
-	for i in range(length):
-		original[i] = input_array[i]
+	if input_array is not original:
+		for i in range(length):
+			original[i] = input_array[i]
 
 
 # TODO: apply performance tricks to smaller sized chunks
@@ -144,11 +145,11 @@ def _partition(array, low, high):
 	while True:
 		while array[lt] <= spliter:
 			lt += 1
-			if lt >= high or array[lt] == spliter:
+			if lt >= high:
 				break
 		while array[gt] >= spliter:
 			gt -= 1
-			if gt < low or array[gt] == spliter:
+			if gt <= low:
 				break
 		if lt >= gt:
 			break
@@ -219,3 +220,9 @@ class QuickSortTest(unittest.TestCase, SortingTest):
 
 	def _get_sorting_algorithm(self):
 		return quick_sort
+
+
+class SystemSortTest(unittest.TestCase, SortingTest):
+
+	def _get_sorting_algorithm(self):
+		return list.sort
