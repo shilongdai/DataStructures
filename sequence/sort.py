@@ -23,7 +23,6 @@ def insertion_sort(arr):
 
 
 def _range_insertion_sort(array, low, high):
-	length = high - low
 	for i in range(low + 1, high):
 		insertion_point = i
 		insertion_val = array[i]
@@ -127,9 +126,12 @@ def natural_merge_sort(array):
 				if array[end] < array[end - 1]:
 					break
 				end += 1
-			for i in range(start, end):
-				aux[i] = array[i]
-			_merge(array, aux, start, mid, end)
+			if end - start < 16:
+				_range_insertion_sort(array, start, end)
+			else:
+				for i in range(start, end):
+					aux[i] = array[i]
+				_merge(array, aux, start, mid, end)
 			merge_count += 1
 			start = end
 			mid = start + 1
