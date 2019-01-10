@@ -1,7 +1,7 @@
+import functools
 import random
 import timeit
 import unittest
-import functools
 
 
 def exchange(arr, i, j):
@@ -146,20 +146,90 @@ def _partition(array, low, high):
 	lt = low + 1
 	gt = high - 1
 	spliter = array[low]
+	adv_lt = False
+	adv_gt = False
 	while True:
 		while array[lt] <= spliter:
+			if array[lt] == spliter:
+				adv_lt = True
+				break
 			lt += 1
 			if lt >= high:
 				break
 		while array[gt] >= spliter:
+			if array[gt] == spliter:
+				adv_gt = True
+				break
 			gt -= 1
 			if gt <= low:
 				break
 		if lt >= gt:
 			break
 		exchange(array, lt, gt)
+		if adv_gt:
+			gt -= 1
+			adv_gt = False
+		if adv_lt:
+			lt += 1
+			adv_lt = False
 	exchange(array, low, gt)
 	return gt
+
+
+def _sampling_partition(array, low, high, sample_size):
+	sample = []
+	for i in range(sample_size):
+		sample.append((i, array[i]))
+	for i in range(1, sample_size):
+		insertion_point = i
+		insertion_val = sample[i]
+		while insertion_point > low and sample[insertion_point - 1][1] > insertion_val[1]:
+			sample[insertion_point] = sample[insertion_point - 1]
+			insertion_point -= 1
+		sample[insertion_point] = insertion_val
+	median = sample[sample_size // 2 + 1]
+	exchange(array, 0, median[0])
+	return _partition(array, low, high)
+
+
+def _three_way_partitioning(array, low, high):
+	v = array[low]
+	p = low + 1
+	q = high - 1
+	i = low + 1
+	j = high - 1
+	while True:
+		if i < high and array[i] == v:
+			exchange(array, p, i)
+			p += 1
+			i += 1
+		if q >= low and array[j] == v:
+			exchange(array, q, j)
+			q -= 1
+			j -= 1
+		while array[i] < v:
+			i += 1
+			if i == high:
+				break
+		while array[j] > v:
+			j -= 1
+		if i == j and array[i] == v:
+			exchange(array, i, p)
+			p += 1
+		if i >= j:
+			break
+		exchange(array, i, j)
+	p -= 1
+	while p >= low:
+		exchange(array, j, p)
+		j -= 1
+		p -= 1
+	q += 1
+	while q < high:
+		exchange(array, i, q)
+		i += 1
+		q += 1
+	return j, i
 
 
 def _quick_sort_recursive(array, low, high):
@@ -171,12 +241,61 @@ def _quick_sort_recursive(array, low, high):
 	_quick_sort_recursive(array, middle + 1, high)
 
 
+def _quick_sort_sampling_recursive(array, low, high, sample_size):
+	if high - low < 16:
+		_range_insertion_sort(array, low, high)
+		return
+	middle = _sampling_partition(array, low, high, sample_size)
+	_quick_sort_sampling_recursive(array, low, middle, sample_size)
+	_quick_sort_sampling_recursive(array, middle + 1, high, sample_size)
+
+
+def _quick_sort_threeway_recursive(array, low, high):
+	if high - low < 16:
+		_range_insertion_sort(array, low, high)
+		return
+	j, i = _three_way_partitioning(array, low, high)
+	_quick_sort_threeway_recursive(array, low, j + 1)
+	_quick_sort_threeway_recursive(array, i, high)
+
+
 def quick_sort(array):
 	random.shuffle(array)
 	_quick_sort_recursive(array, 0, len(array))
 
 
-def doubling_test(alg1, start_size=16, sample_size=5):
+def iterative_quick_sort(array):
+	random.shuffle(array)
+	to_do_stack = []
+	to_do_stack.append((0, len(array)))
+	while len(to_do_stack) != 0:
+		segment = to_do_stack.pop()
+		segment_length = segment[1] - segment[0]
+		if segment_length < 15:
+			_range_insertion_sort(array, segment[0], segment[1])
+			continue
+		middle = _partition(array, segment[0], segment[1])
+		length_a = middle - segment[0]
+		length_b = segment[1] - middle - 1
+		if length_a >= length_b:
+			to_do_stack.append((segment[0], middle))
+			to_do_stack.append((middle + 1, segment[1]))
+		else:
+			to_do_stack.append((segment[0], middle))
+			to_do_stack.append((middle + 1, segment[1]))
+
+
+def sampling_quick_sort(array, sample_size = 3):
+	random.shuffle(array)
+	_quick_sort_sampling_recursive(array, 0, len(array), sample_size)
+
+
+def threeway_quick_sort(array):
+	random.shuffle(array)
+	_quick_sort_threeway_recursive(array, 0, len(array))
+
+
+def doubling_test(alg1, start_size = 16, sample_size = 5):
 	to_sort = []
 	for i in range(start_size):
 		to_sort.append(random.randint(0, start_size))
@@ -207,7 +326,7 @@ class SortingTest:
 		random.seed(n)
 		to_sort = []
 		for i in range(n):
-			to_sort.append(random.randint(0, 1000))
+			to_sort.append(random.randint(0, 5))
 		algorithm = self.get_sorter()
 		algorithm(to_sort)
 		for i in range(1, n):
@@ -250,11 +369,29 @@ class QuickSortTest(unittest.TestCase, SortingTest):
 		return quick_sort
 
 
+class IterativeQuickSortTest(unittest.TestCase, SortingTest):
+
+	def get_sorter(self):
+		return iterative_quick_sort
+
+
+class SamplingQuickSortTest(unittest.TestCase, SortingTest):
+
+	def get_sorter(self):
+		return sampling_quick_sort
+
+
+class ThreewayQuickSortTest(unittest.TestCase, SortingTest):
+
+	def get_sorter(self):
+		return threeway_quick_sort
+
+
 class SystemSortTest(unittest.TestCase, SortingTest):
 
-	def _get_sorting_algorithm(self):
+	def get_sorter(self):
 		return list.sort
 
 
 if __name__ == "__main__":
-	doubling_test(quick_sort, sample_size=1)
+	doubling_test(quick_sort, sample_size = 1)
