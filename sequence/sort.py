@@ -394,4 +394,4 @@ class SystemSortTest(unittest.TestCase, SortingTest):
 
 
 if __name__ == "__main__":
-	doubling_test(quick_sort, sample_size = 1)
+	doubling_test(threeway_quick_sort, sample_size = 1)
