@@ -295,6 +295,32 @@ def threeway_quick_sort(array):
 	_quick_sort_threeway_recursive(array, 0, len(array))
 
 
+def _demote(array, k, n):
+	while k * 2 < n:
+		to_exchange = k * 2
+		if to_exchange + 1 < n and array[to_exchange] < array[to_exchange + 1]:
+			to_exchange += 1
+		if array[k] < array[to_exchange]:
+			exchange(array, k, to_exchange)
+		else:
+			break
+		k = to_exchange
+
+
+def heap_sort(array):
+	array.insert(0, None)
+	n = len(array)
+	i = n // 2
+	while i > 0:
+		_demote(array, i, n)
+		i -= 1
+	while n > 1:
+		exchange(array, 1, n - 1)
+		n -= 1
+		_demote(array, 1, n)
+	del array[0]
+
+
 def doubling_test(alg1, start_size = 16, sample_size = 5):
 	to_sort = []
 	for i in range(start_size):
@@ -385,6 +411,12 @@ class ThreewayQuickSortTest(unittest.TestCase, SortingTest):
 
 	def get_sorter(self):
 		return threeway_quick_sort
+
+
+class HeapSortTest(unittest.TestCase, SortingTest):
+
+	def get_sorter(self):
+		return heap_sort
 
 
 class SystemSortTest(unittest.TestCase, SortingTest):
