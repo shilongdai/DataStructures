@@ -321,6 +321,20 @@ def heap_sort(array):
 		_demote(array, 0, n)
 
 
+def select(array, k):
+	random.shuffle(array)
+	high = len(array)
+	low = 0
+	while True:
+		fixed = _partition(array, low, high)
+		if fixed == k:
+			return array[k]
+		if fixed > k:
+			high = fixed
+		if fixed < k:
+			low = fixed + 1
+
+
 def doubling_test(alg1, start_size = 16, sample_size = 5):
 	to_sort = []
 	for i in range(start_size):
@@ -422,6 +436,21 @@ class SystemSortTest(unittest.TestCase, SortingTest):
 
 	def get_sorter(self):
 		return list.sort
+
+
+class MedianTest(unittest.TestCase):
+
+	def test_select(self):
+		n = 10000
+		random.seed(n)
+		to_sort = []
+		for i in range(n):
+			to_sort.append(random.randint(0, 1000))
+		k = n // 2
+		supposed_median = select(to_sort, k)
+		to_sort = sorted(to_sort)
+		real_median = to_sort[k]
+		self.assertEqual(supposed_median, real_median)
 
 
 if __name__ == "__main__":
