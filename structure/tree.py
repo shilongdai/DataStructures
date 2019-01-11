@@ -1,8 +1,6 @@
 import random
 import unittest
 
-from sequence.sort import exchange
-
 
 class KeyNode:
 
@@ -18,7 +16,7 @@ class BinaryHeap:
 
 	def __init__(self, comparator):
 		self._comparator = comparator
-		self._queue = [None]
+		self._queue = []
 
 	def add(self, key, val):
 		self._queue.append(KeyNode(key, val))
@@ -26,38 +24,43 @@ class BinaryHeap:
 
 	def pop(self):
 		result = self.peep()
-		self._queue[1] = self._queue[len(self._queue) - 1]
+		self._queue[0] = self._queue[len(self._queue) - 1]
 		self._queue.pop()
-		self._demote(1)
+		self._demote(0)
 		return result
 
 	def peep(self):
-		if len(self._queue) > 1:
-			return self._queue[1].value
+		if len(self._queue) > 0:
+			return self._queue[0].value
 		raise IndexError("Heap is empty")
 
 	def __len__(self):
 		return len(self._queue)
 
 	def _rise_up(self, k):
-		while k > 1 and self._less(self._queue[k // 2], self._queue[k]):
-			exchange(self._queue, k, k // 2)
-			k = k // 2
+		while k > 0 and self._less((k - 1) // 2, k):
+			self._exchange(k, (k - 1) // 2)
+			k = (k - 1) // 2
 
 	def _demote(self, k):
 		n = len(self._queue)
-		while k * 2 < n:
-			to_exchange = k * 2
-			if to_exchange + 1 < n and self._less(self._queue[to_exchange], self._queue[to_exchange + 1]):
+		while k * 2 + 1 < n:
+			to_exchange = k * 2 + 1
+			if to_exchange + 1 < n and self._less(to_exchange, to_exchange + 1):
 				to_exchange += 1
-			if self._less(self._queue[k], self._queue[to_exchange]):
-				exchange(self._queue, k, to_exchange)
+			if self._less(k, to_exchange):
+				self._exchange(k, to_exchange)
 			else:
 				break
 			k = to_exchange
 
 	def _less(self, node_a, node_b):
-		return self._comparator(node_a.key, node_b.key)
+		return self._comparator(self._queue[node_a].key, self._queue[node_b].key)
+
+	def _exchange(self, node_a, node_b):
+		temp = self._queue[node_a]
+		self._queue[node_a] = self._queue[node_b]
+		self._queue[node_b] = temp
 
 
 class HeapTest(unittest.TestCase):

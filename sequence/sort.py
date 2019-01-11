@@ -296,8 +296,8 @@ def threeway_quick_sort(array):
 
 
 def _demote(array, k, n):
-	while k * 2 < n:
-		to_exchange = k * 2
+	while k * 2 + 1 < n:
+		to_exchange = k * 2 + 1
 		if to_exchange + 1 < n and array[to_exchange] < array[to_exchange + 1]:
 			to_exchange += 1
 		if array[k] < array[to_exchange]:
@@ -308,17 +308,15 @@ def _demote(array, k, n):
 
 
 def heap_sort(array):
-	array.insert(0, None)
 	n = len(array)
-	i = n // 2
-	while i > 0:
+	i = (n - 2) // 2
+	while i >= 0:
 		_demote(array, i, n)
 		i -= 1
-	while n > 1:
-		exchange(array, 1, n - 1)
+	while n > 0:
+		exchange(array, 0, n - 1)
 		n -= 1
-		_demote(array, 1, n)
-	del array[0]
+		_demote(array, 0, n)
 
 
 def doubling_test(alg1, start_size = 16, sample_size = 5):
