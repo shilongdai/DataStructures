@@ -148,6 +148,8 @@ def _partition(array, low, high):
 	spliter = array[low]
 	adv_lt = False
 	adv_gt = False
+	if high - low == 1:
+		return low
 	while True:
 		while array[lt] <= spliter:
 			if array[lt] == spliter:
@@ -180,14 +182,7 @@ def _sampling_partition(array, low, high, sample_size):
 	sample = []
 	for i in range(sample_size):
 		sample.append((i, array[i]))
-	for i in range(1, sample_size):
-		insertion_point = i
-		insertion_val = sample[i]
-		while insertion_point > low and sample[insertion_point - 1][1] > insertion_val[1]:
-			sample[insertion_point] = sample[insertion_point - 1]
-			insertion_point -= 1
-		sample[insertion_point] = insertion_val
-	median = sample[sample_size // 2 + 1]
+	median = select(sample, sample_size // 2 + 1)
 	exchange(array, 0, median[0])
 	return _partition(array, low, high)
 
