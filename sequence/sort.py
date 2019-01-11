@@ -296,15 +296,17 @@ def threeway_quick_sort(array):
 
 
 def _demote(array, k, n):
+	temp = array[k]
 	while k * 2 + 1 < n:
 		to_exchange = k * 2 + 1
 		if to_exchange + 1 < n and array[to_exchange] < array[to_exchange + 1]:
 			to_exchange += 1
-		if array[k] < array[to_exchange]:
-			exchange(array, k, to_exchange)
+		if temp < array[to_exchange]:
+			array[k] = array[to_exchange]
 		else:
 			break
 		k = to_exchange
+	array[k] = temp
 
 
 def heap_sort(array):
@@ -313,7 +315,7 @@ def heap_sort(array):
 	while i >= 0:
 		_demote(array, i, n)
 		i -= 1
-	while n > 0:
+	while n > 1:
 		exchange(array, 0, n - 1)
 		n -= 1
 		_demote(array, 0, n)
@@ -324,7 +326,6 @@ def doubling_test(alg1, start_size = 16, sample_size = 5):
 	for i in range(start_size):
 		to_sort.append(random.randint(0, start_size))
 	prev_time = 0
-	avg = 0
 	while True:
 		time_sum = 0
 		for i in range(sample_size):
@@ -350,7 +351,7 @@ class SortingTest:
 		random.seed(n)
 		to_sort = []
 		for i in range(n):
-			to_sort.append(random.randint(0, 5))
+			to_sort.append(random.randint(0, 1000))
 		algorithm = self.get_sorter()
 		algorithm(to_sort)
 		for i in range(1, n):
