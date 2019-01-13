@@ -1,6 +1,6 @@
 import unittest
 
-from sequence.linkedList import LinkedStack
+from structure.linkedList import LinkedStack
 
 
 def check_parentheses(exp):

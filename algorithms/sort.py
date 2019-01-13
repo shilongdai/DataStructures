@@ -142,6 +142,65 @@ def natural_merge_sort(array):
 			break
 
 
+def _merge_count_inversion(input_array, aux, low, mid, high):
+	a_pos = low
+	b_pos = mid
+	count = 0
+	if mid < high:
+		if aux[mid] >= aux[mid - 1]:
+			for j in range(high - low):
+				input_array[low + j] = aux[low + j]
+			return 0
+	for i in range(high - low):
+		k = i + low
+		if a_pos == mid:
+			input_array[k] = aux[b_pos]
+			b_pos += 1
+			continue
+		if b_pos >= high:
+			input_array[k] = aux[a_pos]
+			a_pos += 1
+			continue
+		if aux[a_pos] > aux[b_pos]:
+			count += mid - a_pos
+			input_array[k] = aux[b_pos]
+			b_pos += 1
+		else:
+			input_array[k] = aux[a_pos]
+			a_pos += 1
+	return count
+
+
+def inversions(array):
+	array = list(array)
+	segment_size = 1
+	length = len(array)
+	count = 0
+	aux = [None for i in range(length)]
+	while segment_size < length:
+		start = 0
+		end = segment_size * 2
+		aux, array = array, aux
+		while end < length:
+			mid = start + segment_size
+			count += _merge_count_inversion(array, aux, start, mid, end)
+			start = end
+			end += (segment_size * 2)
+		final_mid = start + segment_size
+		count += _merge_count_inversion(array, aux, start, final_mid, length)
+		segment_size = segment_size * 2
+	return count
+
+
+def naive_inversions(array):
+	count = 0
+	for i in range(len(array)):
+		for j in range(i + 1, len(array)):
+			if array[i] > array[j]:
+				count += 1
+	return count
+
+
 def _partition(array, low, high):
 	lt = low + 1
 	gt = high - 1
@@ -353,14 +412,19 @@ def doubling_test(alg1, start_size = 16, sample_size = 5):
 			to_sort.append(random.randint(0, start_size))
 
 
+def random_array(n, low = 0, high = 1000):
+	random.seed(n)
+	arr = []
+	for i in range(n):
+		arr.append(random.randint(low, high))
+	return arr
+
+
 class SortingTest:
 
 	def test_sort(self):
 		n = 10000
-		random.seed(n)
-		to_sort = []
-		for i in range(n):
-			to_sort.append(random.randint(0, 1000))
+		to_sort = random_array(n)
 		algorithm = self.get_sorter()
 		algorithm(to_sort)
 		for i in range(1, n):
@@ -437,15 +501,20 @@ class MedianTest(unittest.TestCase):
 
 	def test_select(self):
 		n = 10000
-		random.seed(n)
-		to_sort = []
-		for i in range(n):
-			to_sort.append(random.randint(0, 1000))
+		to_sort = random_array(n)
 		k = n // 2
 		supposed_median = select(to_sort, k)
 		to_sort = sorted(to_sort)
 		real_median = to_sort[k]
 		self.assertEqual(supposed_median, real_median)
+
+
+class InversionTest(unittest.TestCase):
+
+	def test_inversions(self):
+		n = 10000
+		to_sort = random_array(n, 0, 1000)
+		self.assertEqual(naive_inversions(to_sort), inversions(to_sort))
 
 
 if __name__ == "__main__":
