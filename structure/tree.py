@@ -12,6 +12,14 @@ class KeyNode:
 		return repr(self.__dict__)
 
 
+class BSTNode(KeyNode):
+
+	def __init__(self, key, value, left=None, right=None):
+		KeyNode.__init__(self, key, value)
+		self.right = right
+		self.left = left
+
+
 class BinaryHeap:
 
 	def __init__(self, comparator):
@@ -67,6 +75,69 @@ class BinaryHeap:
 		temp = self._queue[node_a]
 		self._queue[node_a] = self._queue[node_b]
 		self._queue[node_b] = temp
+
+
+class BinarySearchTree:
+
+	def __init__(self):
+		pass
+
+	def get(self, key, default=None):
+		pass
+
+	def pop(self, key, default=None):
+		pass
+
+	def popitem(self):
+		pass
+
+	def setdefault(self, key, default=None):
+		pass
+
+	def update(self, collection, **dictionary):
+		pass
+
+	def values(self):
+		pass
+
+	def keys(self):
+		pass
+
+	def items(self):
+		pass
+
+	def copy(self):
+		pass
+
+	def clear(self):
+		pass
+
+	def __contains__(self, item):
+		pass
+
+	def __delitem__(self, key):
+		pass
+
+	def __eq__(self, other):
+		pass
+
+	def __ne__(self, other):
+		pass
+
+	def __getitem__(self, item):
+		pass
+
+	def __iter__(self):
+		pass
+
+	def __len__(self):
+		pass
+
+	def __setitem__(self, key, value):
+		pass
+
+	def __repr__(self):
+		pass
 
 
 class HeapTest(unittest.TestCase):

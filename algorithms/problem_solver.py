@@ -158,4 +158,3 @@ if __name__ == "__main__":
 		end_config = end_config.parent
 	for i in in_order:
 		print(i)
-		print("")
