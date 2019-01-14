@@ -80,10 +80,19 @@ class BinaryHeap:
 class BinarySearchTree:
 
 	def __init__(self):
-		pass
+		self._root = None
+		self._size = 0
 
 	def get(self, key, default=None):
-		pass
+		current = self._root
+		while current is not None and current.key != key:
+			if key < current.key:
+				current = current.left
+			else:
+				current = current.right
+		if current is None:
+			return default
+		return current.value
 
 	def pop(self, key, default=None):
 		pass
