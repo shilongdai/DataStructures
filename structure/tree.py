@@ -93,43 +93,67 @@ class BinarySearchTree:
 		return result.value
 
 	def pop(self, key, default=None):
-		pass
+		result = self.get(key, default)
+		if result is None:
+			raise KeyError(repr(key))
+		del self[key]
+		return result
 
 	def popitem(self):
-		pass
+		if self._root is None:
+			raise KeyError("the dictionary is empty")
+		next_set = next(self.items())
+		del self[next_set[0]]
+		return next_set
 
-	def setdefault(self, key, default=None):
-		pass
+	def setdefault(self, key, default):
+		if key not in self:
+			self[key] = default
 
 	def update(self, collection, **dictionary):
-		pass
+		for k, v in collection:
+			self[k] = v
+		for k, v in dictionary.items():
+			self[k] = v
 
 	def values(self):
-		pass
+		return self._value_iterator()
 
 	def keys(self):
-		pass
+		return self._key_iterator()
 
 	def items(self):
-		pass
+		return self._both_iterator()
 
 	def copy(self):
-		pass
+		new_root = self._copy_recursive(self._root)
+		result = BinarySearchTree()
+		result._root = new_root
+		result._size = self._size
+		result._use_pre = self._use_pre
+		return result
 
 	def clear(self):
-		pass
+		self._root = None
+		self._size = 0
 
 	def __contains__(self, item):
-		return self.get(item) is None
+		return self.get(item) is not None
 
 	def __delitem__(self, key):
-		self._recursive_delete(self._root, key)
+		self._root = self._recursive_delete(self._root, key)
 
 	def __eq__(self, other):
-		pass
+		try:
+			for k, v in self.items():
+				if v != other[k]:
+					return False
+		except KeyError:
+			return False
+		return True
 
 	def __ne__(self, other):
-		pass
+		return not self.__eq__(other)
 
 	def __getitem__(self, item):
 		result = self.get(item)
@@ -138,10 +162,10 @@ class BinarySearchTree:
 		return result
 
 	def __iter__(self):
-		pass
+		return self._key_iterator()
 
 	def __len__(self):
-		pass
+		return self._size
 
 	def __setitem__(self, key, value):
 		if self._root is None:
@@ -168,7 +192,11 @@ class BinarySearchTree:
 					current = current.right
 
 	def __repr__(self):
-		pass
+		result = "{"
+		for k, v in self.items():
+			result += repr(k) + ":" + repr(v) + ","
+		result = result[:-1]
+		result += "}"
 
 	def _seek(self, key):
 		current = self._root
@@ -179,16 +207,14 @@ class BinarySearchTree:
 				current = current.right
 		return current
 
-	def _delete_min(self, root):
-		parent = None
+	def _delete_min(self, root, parent):
 		while root.left is not None:
 			parent = root
 			root = root.left
 		parent.left = root.right
 		return root
 
-	def _delete_max(self, root):
-		parent = None
+	def _delete_max(self, root, parent):
 		while root.right is not None:
 			parent = root
 			root = root.right
@@ -199,13 +225,52 @@ class BinarySearchTree:
 		if root is None:
 			raise KeyError(repr(key))
 		if root.key == key:
+			self._size -= 1
 			if root.left is None:
 				return root.right
 			if root.right is None:
 				return root.left
 			if self._use_pre:
-				return self._delete_max(root.left)
+				self._use_pre = False
+				return self._delete_max(root.left, root)
+			else:
+				self._use_pre = True
+				return self._delete_min(root.right, root)
+		if key < root.key:
+			root.left = self._recursive_delete(root.left, key)
+		else:
+			root.right = self._recursive_delete(root.right, key)
+		return root
 
+	def _node_generator(self, root):
+		if root is None:
+			return iter([])
+		if root.left is not None:
+			yield from self._node_generator(root.left)
+		yield root
+		if root.right is not None:
+			yield from self._node_generator(root.right)
+
+	def _key_iterator(self):
+		node_gen = self._node_generator(self._root)
+		yield next(node_gen).key
+
+	def _value_iterator(self):
+		node_gen = self._node_generator(self._root)
+		yield next(node_gen).value
+
+	def _both_iterator(self):
+		node_gen = self._node_generator(self._root)
+		next_node = next(node_gen)
+		yield next_node.key, next_node.value
+
+	def _copy_recursive(self, root):
+		if root is None:
+			return None
+		new_root = KeyNode(root.key, root.value)
+		new_root.left = self._copy_recursive(root.left)
+		new_root.right = self._copy_recursive(root.right)
+		return new_root
 
 
 class HeapTest(unittest.TestCase):
@@ -227,7 +292,7 @@ class DictionaryTest:
 
 	def test_frequency(self):
 		n = 10000
-		random_set = random_array(n, 0, 10)
+		random_set = random_array(n, 0, 100)
 		dict_to_test = self.get_dictionary()
 		working_dict = {}
 		for i in random_set:
@@ -239,9 +304,17 @@ class DictionaryTest:
 				working_dict[i] = working_dict[i] + 1
 			else:
 				working_dict[i] = 1
-		for i in random_set:
+		set_from_rand = set(random_set)
+		self.assertEqual(len(set_from_rand), len(dict_to_test))
+		for i in set_from_rand:
 			self.assertEqual(working_dict[i], dict_to_test[i])
+		for k in dict_to_test.keys():
+			self.assertEqual(working_dict[k], dict_to_test[k])
+		for k, v in dict_to_test.items():
+			self.assertEqual(working_dict[k], dict_to_test[k])
+		for i in set(random_set):
 			self.assertEqual(working_dict.pop(i), dict_to_test.pop(i))
+		self.assertEqual(0, len(dict_to_test))
 
 
 class BSTTest(DictionaryTest, unittest.TestCase):
