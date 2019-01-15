@@ -1,6 +1,8 @@
 import random
 import unittest
 
+from algorithms.sort import random_array
+
 
 class KeyNode:
 
@@ -82,17 +84,13 @@ class BinarySearchTree:
 	def __init__(self):
 		self._root = None
 		self._size = 0
+		self._use_pre = False
 
 	def get(self, key, default=None):
-		current = self._root
-		while current is not None and current.key != key:
-			if key < current.key:
-				current = current.left
-			else:
-				current = current.right
-		if current is None:
+		result = self._seek(key)
+		if result is None:
 			return default
-		return current.value
+		return result.value
 
 	def pop(self, key, default=None):
 		pass
@@ -122,10 +120,10 @@ class BinarySearchTree:
 		pass
 
 	def __contains__(self, item):
-		pass
+		return self.get(item) is None
 
 	def __delitem__(self, key):
-		pass
+		self._recursive_delete(self._root, key)
 
 	def __eq__(self, other):
 		pass
@@ -134,7 +132,10 @@ class BinarySearchTree:
 		pass
 
 	def __getitem__(self, item):
-		pass
+		result = self.get(item)
+		if result is None:
+			raise KeyError(repr(item))
+		return result
 
 	def __iter__(self):
 		pass
@@ -143,10 +144,68 @@ class BinarySearchTree:
 		pass
 
 	def __setitem__(self, key, value):
-		pass
+		if self._root is None:
+			self._root = BSTNode(key, value)
+			self._size += 1
+		current = self._root
+		while True:
+			if key == current.key:
+				current.value = value
+				return
+			if key < current.key:
+				if current.left is None:
+					current.left = BSTNode(key, value)
+					self._size += 1
+					return
+				else:
+					current = current.left
+			else:
+				if current.right is None:
+					current.right = BSTNode(key, value)
+					self._size += 1
+					return
+				else:
+					current = current.right
 
 	def __repr__(self):
 		pass
+
+	def _seek(self, key):
+		current = self._root
+		while current is not None and current.key != key:
+			if key < current.key:
+				current = current.left
+			else:
+				current = current.right
+		return current
+
+	def _delete_min(self, root):
+		parent = None
+		while root.left is not None:
+			parent = root
+			root = root.left
+		parent.left = root.right
+		return root
+
+	def _delete_max(self, root):
+		parent = None
+		while root.right is not None:
+			parent = root
+			root = root.right
+		parent.right = root.left
+		return root
+
+	def _recursive_delete(self, root, key):
+		if root is None:
+			raise KeyError(repr(key))
+		if root.key == key:
+			if root.left is None:
+				return root.right
+			if root.right is None:
+				return root.left
+			if self._use_pre:
+				return self._delete_max(root.left)
+
 
 
 class HeapTest(unittest.TestCase):
@@ -162,3 +221,30 @@ class HeapTest(unittest.TestCase):
 		random_data.sort(reverse = True)
 		for i in random_data:
 			self.assertEqual(i, heap.pop())
+
+
+class DictionaryTest:
+
+	def test_frequency(self):
+		n = 10000
+		random_set = random_array(n, 0, 10)
+		dict_to_test = self.get_dictionary()
+		working_dict = {}
+		for i in random_set:
+			if i in dict_to_test:
+				dict_to_test[i] = dict_to_test[i] + 1
+			else:
+				dict_to_test[i] = 1
+			if i in working_dict:
+				working_dict[i] = working_dict[i] + 1
+			else:
+				working_dict[i] = 1
+		for i in random_set:
+			self.assertEqual(working_dict[i], dict_to_test[i])
+			self.assertEqual(working_dict.pop(i), dict_to_test.pop(i))
+
+
+class BSTTest(DictionaryTest, unittest.TestCase):
+
+	def get_dictionary(self):
+		return BinarySearchTree()
