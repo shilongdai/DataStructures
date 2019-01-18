@@ -22,6 +22,13 @@ class BSTNode(KeyNode):
 		self.left = left
 
 
+class RedBlackNode(BSTNode):
+
+	def __init__(self, key, value, left = None, right = None, color = False):
+		BSTNode.__init__(self, key, value, left, right)
+		self.color = color
+
+
 class BinaryHeap:
 
 	def __init__(self, comparator):
@@ -192,11 +199,14 @@ class BinarySearchTree:
 					current = current.right
 
 	def __repr__(self):
+		if len(self) == 0:
+			return "{}"
 		result = "{"
 		for k, v in self.items():
-			result += repr(k) + ":" + repr(v) + ","
-		result = result[:-1]
+			result += repr(k) + ": " + repr(v) + ", "
+		result = result[:-2]
 		result += "}"
+		return result
 
 	def _seek(self, key):
 		current = self._root
@@ -253,16 +263,18 @@ class BinarySearchTree:
 
 	def _key_iterator(self):
 		node_gen = self._node_generator(self._root)
-		yield next(node_gen).key
+		for node in node_gen:
+			yield node.key
 
 	def _value_iterator(self):
 		node_gen = self._node_generator(self._root)
-		yield next(node_gen).value
+		for node in node_gen:
+			yield node.value
 
 	def _both_iterator(self):
 		node_gen = self._node_generator(self._root)
-		next_node = next(node_gen)
-		yield next_node.key, next_node.value
+		for node in node_gen:
+			yield node.key, node.value
 
 	def _copy_recursive(self, root):
 		if root is None:
@@ -271,6 +283,130 @@ class BinarySearchTree:
 		new_root.left = self._copy_recursive(root.left)
 		new_root.right = self._copy_recursive(root.right)
 		return new_root
+
+
+class RedBlackTree(BinarySearchTree):
+
+	def __init__(self):
+		BinarySearchTree.__init__(self)
+
+	def __setitem__(self, key, value):
+		self._root = self._recursive_put(self._root, key, value)
+		self._root.color = False
+
+	def __delitem__(self, key):
+		if self._root is None:
+			return
+		if not self._is_red(self._root.left) and not self._is_red(self._root.right):
+			self._root.color = True
+		self._root = self._delete_recursive(self._root, key)
+		if self._root is not None:
+			self._root.color = False
+
+	def _recursive_put(self, root, key, value):
+		if root is None:
+			self._size += 1
+			return RedBlackNode(key, value, color = True)
+		if root.key == key:
+			root.value = value
+		else:
+			if key < root.key:
+				root.left = self._recursive_put(root.left, key, value)
+			else:
+				root.right = self._recursive_put(root.right, key, value)
+		if self._is_red(root.right) and not self._is_red(root.left):
+			root = self._rotate_left(root)
+		if self._is_red(root.left) and self._is_red(root.left.left):
+			root = self._rotate_right(root)
+		if self._is_red(root.left) and self._is_red(root.right):
+			self._flip_color(root)
+		return root
+
+	def _is_red(self, node):
+		if node is None:
+			return False
+		return node.color
+
+	def _rotate_left(self, root):
+		new_root = root.right
+		root.right = new_root.left
+		new_root.left = root
+		new_root.color = root.color
+		root.color = True
+		return new_root
+
+	def _rotate_right(self, root):
+		new_root = root.left
+		root.left = new_root.right
+		new_root.right = root
+		new_root.color = root.color
+		root.color = True
+		return new_root
+
+	def _flip_color(self, root):
+		root.left.color = not root.left.color
+		root.right.color = not root.right.color
+		root.color = not root.color
+
+	def _move_red_left(self, node):
+		self._flip_color(node)
+		if self._is_red(node.right.left):
+			node.right = self._rotate_right(node.right)
+			node = self._rotate_left(node)
+			self._flip_color(node)
+		return node
+
+	def _balance(self, node):
+		if self._is_red(node.right):
+			node = self._rotate_left(node)
+		if self._is_red(node.left) and self._is_red(node.left.left):
+			node = self._rotate_right(node)
+		if self._is_red(node.left) and self._is_red(node.right):
+			self._flip_color(node)
+		return node
+
+	def _delete_min(self, node):
+		if node.left is None:
+			return None
+		if not self._is_red(node.left) and not self._is_red(node.left.left):
+			node = self._move_red_left(node)
+		node.left = self._delete_min(node.left)
+		return self._balance(node)
+
+	def _min(self, root):
+		while root.left is not None:
+			root = root.left
+		return root
+
+	def _move_red_right(self, node):
+		self._flip_color(node)
+		if self._is_red(node.left.left):
+			node = self._rotate_right(node)
+			self._flip_color(node)
+		return node
+
+	def _delete_recursive(self, node, key):
+		if key < node.key:
+			if not self._is_red(node.left) and not self._is_red(node.left.left):
+				node = self._move_red_left(node)
+			node.left = self._delete_recursive(node.left, key)
+		else:
+			if self._is_red(node.left):
+				node = self._rotate_right(node)
+			if key == node.key and node.right is None:
+				self._size -= 1
+				return None
+			if not self._is_red(node.right) and not self._is_red(node.right.left):
+				node = self._move_red_right(node)
+			if key == node.key:
+				self._size -= 1
+				min_node = self._min(node.right)
+				node.key = min_node.key
+				node.value = min_node.value
+				node.right = self._delete_min(node.right)
+			else:
+				node.right = self._delete_recursive(node.right, key)
+		return self._balance(node)
 
 
 class HeapTest(unittest.TestCase):
@@ -321,3 +457,9 @@ class BSTTest(DictionaryTest, unittest.TestCase):
 
 	def get_dictionary(self):
 		return BinarySearchTree()
+
+
+class RBTreeTest(DictionaryTest, unittest.TestCase):
+
+	def get_dictionary(self):
+		return RedBlackTree()
