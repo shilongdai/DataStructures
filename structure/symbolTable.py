@@ -1,4 +1,3 @@
-import random
 import unittest
 
 from algorithms.sort import random_array
@@ -29,75 +28,7 @@ class RedBlackNode(BSTNode):
 		self.color = color
 
 
-class BinaryHeap:
-
-	def __init__(self, comparator):
-		self._comparator = comparator
-		self._queue = []
-
-	def add(self, key, val):
-		self._queue.append(KeyNode(key, val))
-		self._rise_up(len(self._queue) - 1)
-
-	def pop(self):
-		result = self.peep()
-		self._queue[0] = self._queue[len(self._queue) - 1]
-		self._queue.pop()
-		self._demote(0)
-		return result
-
-	def peep(self):
-		if len(self._queue) > 0:
-			return self._queue[0].value
-		raise IndexError("Heap is empty")
-
-	def __len__(self):
-		return len(self._queue)
-
-	def _rise_up(self, k):
-		temp = self._queue[k]
-		while k > 0 and self._less(self._queue[(k - 1) // 2], temp):
-			self._queue[k] = self._queue[(k - 1) // 2]
-			k = (k - 1) // 2
-		self._queue[k] = temp
-
-	def _demote(self, k):
-		n = len(self._queue)
-		if n == 0:
-			return
-		temp = self._queue[k]
-		while k * 2 + 1 < n:
-			to_exchange = k * 2 + 1
-			if to_exchange + 1 < n and self._less(self._queue[to_exchange], self._queue[to_exchange + 1]):
-				to_exchange += 1
-			if self._less(temp, self._queue[to_exchange]):
-				self._queue[k] = self._queue[to_exchange]
-			else:
-				break
-			k = to_exchange
-		self._queue[k] = temp
-
-	def _less(self, node_a, node_b):
-		return self._comparator(node_a.key, node_b.key)
-
-	def _exchange(self, node_a, node_b):
-		temp = self._queue[node_a]
-		self._queue[node_a] = self._queue[node_b]
-		self._queue[node_b] = temp
-
-
-class BinarySearchTree:
-
-	def __init__(self):
-		self._root = None
-		self._size = 0
-		self._use_pre = False
-
-	def get(self, key, default=None):
-		result = self._seek(key)
-		if result is None:
-			return default
-		return result.value
+class BaseSymbolTable:
 
 	def pop(self, key, default=None):
 		result = self.get(key, default)
@@ -107,7 +38,7 @@ class BinarySearchTree:
 		return result
 
 	def popitem(self):
-		if self._root is None:
+		if len(self) == 0:
 			raise KeyError("the dictionary is empty")
 		next_set = next(self.items())
 		del self[next_set[0]]
@@ -122,6 +53,51 @@ class BinarySearchTree:
 			self[k] = v
 		for k, v in dictionary.items():
 			self[k] = v
+
+	def __contains__(self, item):
+		return self.get(item) is not None
+
+	def __eq__(self, other):
+		try:
+			for k, v in self.items():
+				if v != other[k]:
+					return False
+		except KeyError:
+			return False
+		return True
+
+	def __ne__(self, other):
+		return not self.__eq__(other)
+
+	def __getitem__(self, item):
+		result = self.get(item)
+		if result is None:
+			raise KeyError(repr(item))
+		return result
+
+	def __repr__(self):
+		if len(self) == 0:
+			return "{}"
+		result = "{"
+		for k, v in self.items():
+			result += repr(k) + ": " + repr(v) + ", "
+		result = result[:-2]
+		result += "}"
+		return result
+
+
+class BinarySearchTree(BaseSymbolTable):
+
+	def __init__(self):
+		self._root = None
+		self._size = 0
+		self._use_pre = False
+
+	def get(self, key, default=None):
+		result = self._seek(key)
+		if result is None:
+			return default
+		return result.value
 
 	def values(self):
 		return self._value_iterator()
@@ -144,29 +120,8 @@ class BinarySearchTree:
 		self._root = None
 		self._size = 0
 
-	def __contains__(self, item):
-		return self.get(item) is not None
-
 	def __delitem__(self, key):
 		self._root = self._recursive_delete(self._root, key)
-
-	def __eq__(self, other):
-		try:
-			for k, v in self.items():
-				if v != other[k]:
-					return False
-		except KeyError:
-			return False
-		return True
-
-	def __ne__(self, other):
-		return not self.__eq__(other)
-
-	def __getitem__(self, item):
-		result = self.get(item)
-		if result is None:
-			raise KeyError(repr(item))
-		return result
 
 	def __iter__(self):
 		return self._key_iterator()
@@ -197,16 +152,6 @@ class BinarySearchTree:
 					return
 				else:
 					current = current.right
-
-	def __repr__(self):
-		if len(self) == 0:
-			return "{}"
-		result = "{"
-		for k, v in self.items():
-			result += repr(k) + ": " + repr(v) + ", "
-		result = result[:-2]
-		result += "}"
-		return result
 
 	def _seek(self, key):
 		current = self._root
@@ -365,12 +310,12 @@ class RedBlackTree(BinarySearchTree):
 			self._flip_color(node)
 		return node
 
-	def _delete_min(self, node):
+	def _delete_min_recursive(self, node):
 		if node.left is None:
 			return None
 		if not self._is_red(node.left) and not self._is_red(node.left.left):
 			node = self._move_red_left(node)
-		node.left = self._delete_min(node.left)
+		node.left = self._delete_min_recursive(node.left)
 		return self._balance(node)
 
 	def _min(self, root):
@@ -403,25 +348,110 @@ class RedBlackTree(BinarySearchTree):
 				min_node = self._min(node.right)
 				node.key = min_node.key
 				node.value = min_node.value
-				node.right = self._delete_min(node.right)
+				node.right = self._delete_min_recursive(node.right)
 			else:
 				node.right = self._delete_recursive(node.right, key)
 		return self._balance(node)
 
 
-class HeapTest(unittest.TestCase):
+class SeparateChainingHashTable(BaseSymbolTable):
 
-	def test_order(self):
-		random_data = []
-		heap = BinaryHeap(int.__lt__)
-		random.seed(10000)
-		for i in range(10000):
-			random_data.append(random.randint(0, 1000))
-		for i in random_data:
-			heap.add(i, i)
-		random_data.sort(reverse = True)
-		for i in random_data:
-			self.assertEqual(i, heap.pop())
+	def __init__(self, table_size=17):
+		self._table = [[]]
+		self._size = 0
+		self._table_size = table_size
+		self._resize(table_size)
+		self._initial_table_size = table_size
+
+	def get(self, key, default=None):
+		index = self._hash(key)
+		chain = self._table[index]
+		probed_index = self._sequential_search(key, chain)
+		if probed_index == -1:
+			return default
+		return chain[probed_index][1]
+
+	def values(self):
+		for k, v in self.items():
+			yield v
+
+	def keys(self):
+		for k, v in self.items():
+			yield k
+
+	def items(self):
+		for st in self._table:
+			for k, v in st:
+				yield k, v
+
+	def copy(self):
+		new_table = [[]] * self._table_size
+		for i in range(self._table_size):
+			for item in self._table[i]:
+				new_table[i].append(item)
+		result = SeparateChainingHashTable()
+		result._table = new_table
+		result._table_size = self._table_size
+		result._initial_table_size = self._initial_table_size
+		result._size = self._size
+		return result
+
+	def clear(self):
+		self._table = [[]] * self._initial_table_size
+		self._size = 0
+		self._table_size = self._initial_table_size
+
+	def __delitem__(self, key):
+		index = self._hash(key)
+		chain = self._table[index]
+		probed_index = self._sequential_search(key, chain)
+		if probed_index != -1:
+			del chain[probed_index]
+			self._size -= 1
+		if self._size <= 2 * self._table_size:
+			new_size = self._table_size // 2
+			if new_size >= self._initial_table_size:
+				self._resize(self._table_size // 2)
+
+	def __iter__(self):
+		return self.keys()
+
+	def __len__(self):
+		return self._size
+
+	def __setitem__(self, key, value):
+		index = self._hash(key)
+		chain = self._table[index]
+		probed_index = self._sequential_search(key, chain)
+		if probed_index == -1:
+			chain.append((key, value))
+			self._size += 1
+		else:
+			chain[probed_index] = key, value
+		if self._size >= 8 * self._table_size:
+			self._resize(2 * self._table_size)
+
+	def _resize(self, m):
+		old_table = self._table
+		self._table = []
+		for i in range(m):
+			self._table.append([])
+		self._table_size = m
+		self._size = 0
+		for st in old_table:
+			for k, v in st:
+				self[k] = v
+
+	def _hash(self, k):
+		hash_val = abs(hash(k))
+		hash_val = hash_val % self._table_size
+		return hash_val
+
+	def _sequential_search(self, k, st):
+		for i in range(len(st)):
+			if st[i][0] == k:
+				return i
+		return -1
 
 
 class DictionaryTest:
@@ -463,3 +493,15 @@ class RBTreeTest(DictionaryTest, unittest.TestCase):
 
 	def get_dictionary(self):
 		return RedBlackTree()
+
+
+class SeparateChainingHashTableTest(DictionaryTest, unittest.TestCase):
+
+	def get_dictionary(self):
+		return SeparateChainingHashTable(997)
+
+
+class StdDictTest(unittest.TestCase, DictionaryTest):
+
+	def get_dictionary(self):
+		return dict()
