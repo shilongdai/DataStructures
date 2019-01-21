@@ -385,7 +385,9 @@ class SeparateChainingHashTable(BaseSymbolTable):
 				yield k, v
 
 	def copy(self):
-		new_table = [[]] * self._table_size
+		new_table = []
+		for i in range(self._table_size):
+			new_table.append([])
 		for i in range(self._table_size):
 			for item in self._table[i]:
 				new_table[i].append(item)
@@ -397,7 +399,9 @@ class SeparateChainingHashTable(BaseSymbolTable):
 		return result
 
 	def clear(self):
-		self._table = [[]] * self._initial_table_size
+		self._table = []
+		for i in range(self._initial_table_size):
+			self._table.append([])
 		self._size = 0
 		self._table_size = self._initial_table_size
 
@@ -405,9 +409,10 @@ class SeparateChainingHashTable(BaseSymbolTable):
 		index = self._hash(key)
 		chain = self._table[index]
 		probed_index = self._sequential_search(key, chain)
-		if probed_index != -1:
-			del chain[probed_index]
-			self._size -= 1
+		if probed_index == -1:
+			raise KeyError(probed_index)
+		del chain[probed_index]
+		self._size -= 1
 		if self._size <= 2 * self._table_size:
 			new_size = self._table_size // 2
 			if new_size >= self._initial_table_size:
@@ -452,6 +457,115 @@ class SeparateChainingHashTable(BaseSymbolTable):
 			if st[i][0] == k:
 				return i
 		return -1
+
+
+class OpenAddressHashTable(BaseSymbolTable):
+
+	def __init__(self, table_size=17):
+		self._table = []
+		self._size = 0
+		self._table_size = table_size
+		self._resize(table_size)
+		self._initial_table_size = table_size
+
+	def get(self, key, default=None):
+		index = self._hash(key)
+		probed_index = self._linear_probe(key, index)
+		if not probed_index[1]:
+			return default
+		return self._table[probed_index[0]][1]
+
+	def values(self):
+		for k, v in self.items():
+			yield v
+
+	def keys(self):
+		for k, v in self.items():
+			yield k
+
+	def items(self):
+		for item in self._table:
+			if item is not None:
+				yield item
+
+	def copy(self):
+		new_table = []
+		for i in range(self._size):
+			new_table.append(self._table[i])
+		result = OpenAddressHashTable()
+		result._table = new_table
+		result._table_size = self._table_size
+		result._initial_table_size = self._initial_table_size
+		result._size = self._size
+		return result
+
+	def clear(self):
+		self._table.clear()
+		for i in range(self._initial_table_size):
+			self._table.append(None)
+		self._size = 0
+		self._table_size = self._initial_table_size
+
+	def __delitem__(self, key):
+		index = self._hash(key)
+		probed_index = self._linear_probe(key, index)
+		if not probed_index[1]:
+			raise KeyError(key)
+		self._table[probed_index[0]] = None
+		self._size -= 1
+		index = probed_index[0]
+		index = (index + 1) % self._table_size
+		while self._table[index] is not None:
+			k, v = self._table[index]
+			self._table[index] = None
+			self._size -= 1
+			self[k] = v
+			index = (index + 1) % self._table_size
+		if self._table_size // 8 >= self._size:
+			new_size = self._table_size // 2
+			if new_size >= self._initial_table_size:
+				self._resize(self._table_size // 2)
+
+	def __iter__(self):
+		return self.keys()
+
+	def __len__(self):
+		return self._size
+
+	def __setitem__(self, key, value):
+		index = self._hash(key)
+		probed_index = self._linear_probe(key, index)
+		if not probed_index[1]:
+			self._table[probed_index[0]] = (key, value)
+			self._size += 1
+		else:
+			self._table[probed_index[0]] = key, value
+		if self._size * 2 >= self._table_size:
+			self._resize(2 * self._table_size)
+
+	def _resize(self, m):
+		old_table = self._table
+		self._table = []
+		for i in range(m):
+			self._table.append(None)
+		self._table_size = m
+		self._size = 0
+		for k, v in old_table:
+			self[k] = v
+
+	def _hash(self, k):
+		hash_val = abs(hash(k))
+		hash_val = hash_val % self._table_size
+		return hash_val
+
+	def _linear_probe(self, k, start_index):
+		i = start_index
+		while i < self._table_size:
+			if self._table[i] is None:
+				return i, False
+			if self._table[i][0] == k:
+				return i, True
+			i = (i + 1) % self._table_size
 
 
 class DictionaryTest:
@@ -499,6 +613,12 @@ class SeparateChainingHashTableTest(DictionaryTest, unittest.TestCase):
 
 	def get_dictionary(self):
 		return SeparateChainingHashTable(997)
+
+
+class OpenAddressHashTableTest(DictionaryTest, unittest.TestCase):
+
+	def get_dictionary(self):
+		return OpenAddressHashTable(997)
 
 
 class StdDictTest(unittest.TestCase, DictionaryTest):
