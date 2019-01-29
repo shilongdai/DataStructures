@@ -210,11 +210,38 @@ class CycleDetection:
 		self._marked[current] = True
 		for vertex_name, vertex in graph.adjacent(current):
 			if vertex_name not in self._marked:
-				self._marked[vertex_name] = True
 				self._recursive_dfs(graph, vertex_name, current)
 			else:
 				if parent != vertex_name:
 					self._has_cycle = True
+
+
+class BiparteDetection:
+
+	def __init__(self):
+		self._marked = {}
+		self._color = {}
+		self._is_biparte = True
+
+	def do(self, graph):
+		for vertex_name, vertex in graph.vertices():
+			if vertex_name not in self._marked:
+				self._color[vertex_name] = False
+				self._recursive_dfs(graph, vertex_name)
+
+	def is_biparte(self):
+		return self._is_biparte
+
+	def _recursive_dfs(self, graph, current):
+		self._marked[current] = True
+		for vertex_name, vertex in graph.adjacent(current):
+			if vertex_name not in self._marked:
+				self._color[vertex_name] = not self._color[current]
+				self._recursive_dfs(graph, vertex_name)
+			else:
+				if self._color[vertex_name] == self._color[current]:
+					self._is_biparte = False
+
 
 
 class UndirectedGraphTest(unittest.TestCase):
@@ -280,6 +307,30 @@ class UndirectedGraphTest(unittest.TestCase):
 		graph.add_edge("h", "k")
 		graph.add_edge("i", "l")
 		graph.add_edge("j", "m")
+		return graph
+
+	@staticmethod
+	def create_biparte_graph():
+		graph = Graph()
+		graph.put_vertex("movie_a", "a")
+		graph.put_vertex("movie_b", "b")
+		graph.put_vertex("movie_c", "c")
+		graph.put_vertex("movie_d", "d")
+		graph.put_vertex("actor_a", "e")
+		graph.put_vertex("actor_b", "f")
+		graph.put_vertex("actor_c", "g")
+		graph.put_vertex("actor_d", "h")
+		graph.put_vertex("actor_e", "i")
+		graph.add_edge("movie_a", "actor_a")
+		graph.add_edge("movie_b", "actor_b")
+		graph.add_edge("movie_c", "actor_c")
+		graph.add_edge("movie_d", "actor_d")
+		graph.add_edge("movie_d", "actor_e")
+		graph.add_edge("actor_a", "movie_b")
+		graph.add_edge("actor_c", "movie_a")
+		graph.add_edge("actor_c", "movie_b")
+		graph.add_edge("actor_d", "movie_a")
+		graph.add_edge("actor_e", "movie_b")
 		return graph
 
 	def test_adjacency(self):
@@ -353,3 +404,13 @@ class UndirectedGraphTest(unittest.TestCase):
 		graph = UndirectedGraphTest.create_acyclic_graph()
 		graph.apply(searcher)
 		self.assertFalse(searcher.has_cycle())
+
+	def test_biparte_detection(self):
+		searcher = BiparteDetection()
+		graph = UndirectedGraphTest.create_biparte_graph()
+		graph.apply(searcher)
+		self.assertTrue(searcher.is_biparte())
+		graph = UndirectedGraphTest.create_connected_graph()
+		searcher = BiparteDetection()
+		graph.apply(searcher)
+		self.assertFalse(searcher.is_biparte())
