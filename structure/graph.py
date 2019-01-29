@@ -190,35 +190,37 @@ class ConnectedComponents:
 
 class CycleDetection:
 
-	def __init__(self):
+	def __init__(self, impossible):
 		self._marked = {}
-		self._hash_cycle = False
+		self._has_cycle = False
+		self.impossible = impossible
 
 	def do(self, graph):
-		pass
+		for vertex_name, vertex in graph.vertices():
+			if vertex_name not in self._marked:
+				self._recursive_dfs(graph, vertex_name, self.impossible)
 
 	def has_cycle(self):
-		pass
+		return self._has_cycle
 
 	def cycles(self):
 		pass
 
-	def _recursive_dfs(self, graph, current, detector):
+	def _recursive_dfs(self, graph, current, parent):
+		self._marked[current] = True
 		for vertex_name, vertex in graph.adjacent(current):
 			if vertex_name not in self._marked:
 				self._marked[vertex_name] = True
 				self._recursive_dfs(graph, vertex_name, current)
 			else:
-				if detector == vertex_name:
-					self._hash_cycle = True
-					return True
-				return False
+				if parent != vertex_name:
+					self._has_cycle = True
 
 
 class UndirectedGraphTest(unittest.TestCase):
 
 	@staticmethod
-	def create_graph():
+	def create_connected_graph():
 		graph = Graph()
 		graph.put_vertex("a", "a")
 		graph.put_vertex("b", "b")
@@ -247,14 +249,47 @@ class UndirectedGraphTest(unittest.TestCase):
 		graph.add_edge("g", "i")
 		return graph
 
+	@staticmethod
+	def create_disconnected_graph():
+		nodes = "abcdefghijklm"
+		graph = Graph()
+		for i in nodes:
+			graph.put_vertex(i, i)
+		graph.add_edge("a", "e")
+		graph.add_edge("a", "d")
+		graph.add_edge("a", "c")
+		graph.add_edge("a", "b")
+		graph.add_edge("c", "g")
+		graph.add_edge("b", "f")
+		graph.add_edge("g", "f")
+		graph.add_edge("h", "i")
+		graph.add_edge("j", "m")
+		graph.add_edge("h", "j")
+		graph.add_edge("h", "k")
+		graph.add_edge("l", "i")
+		return graph
+
+	@staticmethod
+	def create_acyclic_graph():
+		nodes = "hijklm"
+		graph = Graph()
+		for i in nodes:
+			graph.put_vertex(i, i)
+		graph.add_edge("h", "i")
+		graph.add_edge("h", "j")
+		graph.add_edge("h", "k")
+		graph.add_edge("i", "l")
+		graph.add_edge("j", "m")
+		return graph
+
 	def test_adjacency(self):
-		graph = UndirectedGraphTest.create_graph()
+		graph = UndirectedGraphTest.create_connected_graph()
 		neighbors = {"d", "b", "e", "g"}
 		for name, vertex in graph.adjacent("f"):
 			self.assertTrue(name in neighbors)
 
 	def test_stats(self):
-		graph = UndirectedGraphTest.create_graph()
+		graph = UndirectedGraphTest.create_connected_graph()
 		self.assertEqual(4, graph.degree("f"))
 		self.assertEqual(4, graph.degree("g"))
 		self.assertEqual(3, graph.degree("e"))
@@ -265,7 +300,7 @@ class UndirectedGraphTest(unittest.TestCase):
 
 	def test_depth_first_search(self):
 		searcher = DepthFirstSearch("f")
-		graph = UndirectedGraphTest.create_graph()
+		graph = UndirectedGraphTest.create_connected_graph()
 		graph.apply(searcher)
 		self.assertEqual(graph.vertex_count(), searcher.count())
 		vertices = "abcdefghijk"
@@ -274,7 +309,7 @@ class UndirectedGraphTest(unittest.TestCase):
 
 	def test_depth_first_path(self):
 		searcher = DepthFirstPaths("f")
-		graph = UndirectedGraphTest.create_graph()
+		graph = UndirectedGraphTest.create_connected_graph()
 		graph.apply(searcher)
 		vertices = "abcdefghijk"
 		for c in vertices:
@@ -286,7 +321,7 @@ class UndirectedGraphTest(unittest.TestCase):
 
 	def test_breadth_first_path(self):
 		searcher = BreadthFirstPaths("f")
-		graph = UndirectedGraphTest.create_graph()
+		graph = UndirectedGraphTest.create_connected_graph()
 		graph.apply(searcher)
 		vertices = "abcdefghijk"
 		for c in vertices:
@@ -298,10 +333,23 @@ class UndirectedGraphTest(unittest.TestCase):
 
 	def test_connected_component(self):
 		searcher = ConnectedComponents()
-		graph = UndirectedGraphTest.create_graph()
+		graph = UndirectedGraphTest.create_disconnected_graph()
 		graph.apply(searcher)
-		self.assertEqual(1, searcher.count())
+		self.assertEqual(2, searcher.count())
 		connected = set(searcher.component(0))
-		self.assertEqual(set("abcdefghijk"), connected)
-		self.assertTrue(searcher.connected("a", "i"))
-		self.assertEqual(0, searcher.id("f"))
+		self.assertEqual(set("abcdefg"), connected)
+		connected = set(searcher.component(1))
+		self.assertEqual(set("hijklm"), connected)
+		self.assertTrue(searcher.connected("h", "m"))
+		self.assertTrue(searcher.connected("a", "g"))
+		self.assertEqual(0, searcher.id("a"))
+
+	def test_cycle_detection(self):
+		searcher = CycleDetection("-1")
+		graph = UndirectedGraphTest.create_connected_graph()
+		graph.apply(searcher)
+		self.assertTrue(searcher.has_cycle())
+		searcher = CycleDetection("-1")
+		graph = UndirectedGraphTest.create_acyclic_graph()
+		graph.apply(searcher)
+		self.assertFalse(searcher.has_cycle())
