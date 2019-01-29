@@ -59,6 +59,10 @@ class Graph:
 	def apply(self, operation):
 		operation.do(self)
 
+	def vertices(self):
+		for k, v in self._vertices.items():
+			yield k, v
+
 
 class DepthFirstSearch:
 
@@ -101,6 +105,10 @@ class PathSearch:
 		path.reverse()
 		path.append(other_vertex)
 		return path
+
+	def connected(self):
+		for k in self._get_path_tree():
+			yield k
 
 
 class DepthFirstPaths(PathSearch):
@@ -146,6 +154,38 @@ class BreadthFirstPaths(PathSearch):
 
 	def _get_path_tree(self):
 		return self._parent_tree
+
+
+class ConnectedComponents:
+
+	def __init__(self):
+		self._count = 0
+		self._connected_marker = dict()
+
+	def do(self, graph):
+		for vertex_name, vertex in graph.vertices():
+			if vertex_name not in self._connected_marker:
+				dfp = DepthFirstPaths(vertex_name)
+				graph.apply(dfp)
+				for k in dfp.connected():
+					self._connected_marker[k] = self._count
+				self._count += 1
+
+	def count(self):
+		return self._count
+
+	def connected(self, a, b):
+		return self._connected_marker[a] == self._connected_marker[b]
+
+	def id(self, vertex_name):
+		if vertex_name not in self._connected_marker:
+			raise KeyError(vertex_name)
+		return self._connected_marker[vertex_name]
+
+	def component(self, id):
+		for k, v in self._connected_marker.items():
+			if v == id:
+				yield k
 
 
 class UndirectedGraphTest(unittest.TestCase):
@@ -214,6 +254,8 @@ class UndirectedGraphTest(unittest.TestCase):
 			self.assertTrue(searcher.has_path(c))
 		sequence = searcher.path_to("c")
 		self.assertEqual("fdabec", "".join(sequence))
+		connected = set(searcher.connected())
+		self.assertEqual(set("abcdefghijk"), connected)
 
 	def test_breadth_first_path(self):
 		searcher = BreadthFirstPaths("f")
@@ -224,3 +266,15 @@ class UndirectedGraphTest(unittest.TestCase):
 			self.assertTrue(searcher.has_path(c))
 		sequence = searcher.path_to("c")
 		self.assertEqual("fbec", "".join(sequence))
+		connected = set(searcher.connected())
+		self.assertEqual(set("abcdefghijk"), connected)
+
+	def test_connected_component(self):
+		searcher = ConnectedComponents()
+		graph = UndirectedGraphTest.create_graph()
+		graph.apply(searcher)
+		self.assertEqual(1, searcher.count())
+		connected = set(searcher.component(0))
+		self.assertEqual(set("abcdefghijk"), connected)
+		self.assertTrue(searcher.connected("a", "i"))
+		self.assertEqual(0, searcher.id("f"))
