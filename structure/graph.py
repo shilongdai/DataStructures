@@ -188,6 +188,33 @@ class ConnectedComponents:
 				yield k
 
 
+class CycleDetection:
+
+	def __init__(self):
+		self._marked = {}
+		self._hash_cycle = False
+
+	def do(self, graph):
+		pass
+
+	def has_cycle(self):
+		pass
+
+	def cycles(self):
+		pass
+
+	def _recursive_dfs(self, graph, current, detector):
+		for vertex_name, vertex in graph.adjacent(current):
+			if vertex_name not in self._marked:
+				self._marked[vertex_name] = True
+				self._recursive_dfs(graph, vertex_name, current)
+			else:
+				if detector == vertex_name:
+					self._hash_cycle = True
+					return True
+				return False
+
+
 class UndirectedGraphTest(unittest.TestCase):
 
 	@staticmethod
