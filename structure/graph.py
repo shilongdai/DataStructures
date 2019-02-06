@@ -210,28 +210,52 @@ class CycleDetection:
 
 	def __init__(self, impossible):
 		self._marked = {}
+		self._in_cycle = False
 		self._has_cycle = False
+		self._parent_tree = dict()
+		self.looper = impossible
 		self.impossible = impossible
 
 	def do(self, graph):
 		for vertex_name, vertex in graph.vertices():
 			if vertex_name not in self._marked:
 				self._recursive_dfs(graph, vertex_name, self.impossible)
+				if self._has_cycle:
+					return
 
 	def has_cycle(self):
 		return self._has_cycle
 
-	def cycles(self):
-		pass
+	def cycle(self):
+		if not self._has_cycle:
+			raise ValueError("No cycle detected")
+		result = []
+		next_item = self._parent_tree[self.looper]
+		while next_item != self.looper:
+			result.append(next_item)
+			next_item = self._parent_tree[next_item]
+		result.append(self.looper)
+		result.reverse()
+		return result
 
 	def _recursive_dfs(self, graph, current, parent):
 		self._marked[current] = True
 		for vertex_name, vertex in graph.adjacent(current):
 			if vertex_name not in self._marked:
 				self._recursive_dfs(graph, vertex_name, current)
+				if self._in_cycle:
+					self._parent_tree[vertex_name] = current
+				if current == self.looper:
+					self._in_cycle = False
+				if self._has_cycle:
+					return
 			else:
 				if parent != vertex_name:
+					self._in_cycle = True
 					self._has_cycle = True
+					self._parent_tree[vertex_name] = current
+					self.looper = vertex_name
+					return
 
 
 class BiparteDetection:
@@ -449,6 +473,8 @@ class UndirectedGraphTest(unittest.TestCase):
 		graph = UndirectedGraphTest.create_connected_graph()
 		graph.apply(searcher)
 		self.assertTrue(searcher.has_cycle())
+		self.assertEqual("abfd", "".join(searcher.cycle()))
+		print(searcher.cycle())
 		searcher = CycleDetection("-1")
 		graph = UndirectedGraphTest.create_acyclic_graph()
 		graph.apply(searcher)
