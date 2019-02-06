@@ -1,5 +1,7 @@
 import unittest
 
+from structure.symbolTable import RedBlackTree
+
 
 class Graph:
 
@@ -139,21 +141,35 @@ class BreadthFirstPaths(PathSearch):
 		self.vertex_name = vertex_name
 		self._marked = dict()
 		self._parent_tree = dict()
+		self._distance = dict()
 
 	def do(self, graph):
 		processing_queue = [self.vertex_name]
 		self._marked[self.vertex_name] = True
 		self._parent_tree[self.vertex_name] = self.vertex_name
+		self._distance[self.vertex_name] = 0
 		while len(processing_queue) != 0:
 			next_vertex = processing_queue.pop(0)
 			for name, vertex in graph.adjacent(next_vertex):
 				if not self._marked.get(name, False):
 					self._marked[next_vertex] = True
 					self._parent_tree[name] = next_vertex
+					self._distance[name] = self._calc_length(name)
 					processing_queue.append(name)
+
+	def distance_to(self, vertex_name):
+		return self._distance[vertex_name]
 
 	def _get_path_tree(self):
 		return self._parent_tree
+
+	def _calc_length(self, name):
+		init = name
+		length = 0
+		while init != self._parent_tree[init]:
+			init = self._parent_tree[init]
+			length += 1
+		return length
 
 
 class ConnectedComponents:
@@ -189,6 +205,8 @@ class ConnectedComponents:
 
 
 class CycleDetection:
+
+	# assume no self loop or parallel edge
 
 	def __init__(self, impossible):
 		self._marked = {}
@@ -242,6 +260,36 @@ class BiparteDetection:
 				if self._color[vertex_name] == self._color[current]:
 					self._is_biparte = False
 
+
+class GraphProperties:
+
+	def __init__(self):
+		self._eccentricity = RedBlackTree()
+		self._reverse_eccentricity = dict()
+		self.radius = 0
+		self.diameter = 0
+		self.center = None
+
+	def do(self, graph):
+		for vertex_name, vertex in graph.vertices():
+			bfs = BreadthFirstPaths(vertex_name)
+			graph.apply(bfs)
+			path_length = 0
+			for name, value in graph.vertices():
+				distance = bfs.distance_to(name)
+				if distance > path_length:
+					path_length = distance
+			self._eccentricity[path_length] = vertex_name
+			self._reverse_eccentricity[vertex_name] = path_length
+		self.radius = self._eccentricity.min()[0]
+		self.diameter = self._eccentricity.max()[0]
+		try:
+			self.center = self._eccentricity[self.radius]
+		except KeyError as e:
+			pass
+
+	def eccentricity(self, vertex_name):
+		return self._reverse_eccentricity[vertex_name]
 
 
 class UndirectedGraphTest(unittest.TestCase):
@@ -379,6 +427,7 @@ class UndirectedGraphTest(unittest.TestCase):
 			self.assertTrue(searcher.has_path(c))
 		sequence = searcher.path_to("c")
 		self.assertEqual("fbec", "".join(sequence))
+		self.assertEqual(3, searcher.distance_to("c"))
 		connected = set(searcher.connected())
 		self.assertEqual(set("abcdefghijk"), connected)
 
@@ -414,3 +463,11 @@ class UndirectedGraphTest(unittest.TestCase):
 		searcher = BiparteDetection()
 		graph.apply(searcher)
 		self.assertFalse(searcher.is_biparte())
+
+	def test_graph_properties(self):
+		properties = GraphProperties()
+		graph = UndirectedGraphTest.create_connected_graph()
+		graph.apply(properties)
+		self.assertEqual(3, properties.radius)
+		self.assertEqual(6, properties.diameter)
+		self.assertEqual("f", properties.center)

@@ -120,6 +120,22 @@ class BinarySearchTree(BaseSymbolTable):
 		self._root = None
 		self._size = 0
 
+	def min(self):
+		if self._root is None:
+			raise ValueError("The tree is empty")
+		root = self._root
+		while root.left is not None:
+			root = root.left
+		return root.key, root.value
+
+	def max(self):
+		if self._root is None:
+			raise ValueError("The tree is empty")
+		root = self._root
+		while root.right is not None:
+			root = root.right
+		return root.key, root.value
+
 	def __delitem__(self, key):
 		self._root = self._recursive_delete(self._root, key)
 
