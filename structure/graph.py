@@ -3,7 +3,7 @@ import unittest
 from structure.symbolTable import RedBlackTree
 
 
-class Graph:
+class UndirectedGraph:
 
 	def __init__(self):
 		self._adjacency_lists = dict()
@@ -64,6 +64,29 @@ class Graph:
 	def vertices(self):
 		for k, v in self._vertices.items():
 			yield k, v
+
+
+class DirectedGraph(UndirectedGraph):
+
+	def __init__(self):
+		UndirectedGraph.__init__()
+
+	def add_edge(self, vertex_a, vertex_b):
+		if vertex_a not in self._adjacency_lists or vertex_b not in self._adjacency_lists:
+			raise KeyError("vertex not added to the graph")
+		self._adjacency_lists[vertex_a].append(vertex_b)
+		self._edge_count += 1
+
+	def avg_degree(self):
+		return self.edge_count() / self.vertex_count()
+
+	def self_loop_count(self):
+		count = 0
+		for vertex_name in self._adjacency_lists:
+			for adj_name, adj_vertex in self.adjacent(vertex_name):
+				if adj_name == vertex_name:
+					count += 1
+		return count
 
 
 class DepthFirstSearch:
@@ -320,7 +343,7 @@ class UndirectedGraphTest(unittest.TestCase):
 
 	@staticmethod
 	def create_connected_graph():
-		graph = Graph()
+		graph = UndirectedGraph()
 		graph.put_vertex("a", "a")
 		graph.put_vertex("b", "b")
 		graph.put_vertex("c", "c")
@@ -351,7 +374,7 @@ class UndirectedGraphTest(unittest.TestCase):
 	@staticmethod
 	def create_disconnected_graph():
 		nodes = "abcdefghijklm"
-		graph = Graph()
+		graph = UndirectedGraph()
 		for i in nodes:
 			graph.put_vertex(i, i)
 		graph.add_edge("a", "e")
@@ -371,7 +394,7 @@ class UndirectedGraphTest(unittest.TestCase):
 	@staticmethod
 	def create_acyclic_graph():
 		nodes = "hijklm"
-		graph = Graph()
+		graph = UndirectedGraph()
 		for i in nodes:
 			graph.put_vertex(i, i)
 		graph.add_edge("h", "i")
@@ -383,7 +406,7 @@ class UndirectedGraphTest(unittest.TestCase):
 
 	@staticmethod
 	def create_biparte_graph():
-		graph = Graph()
+		graph = UndirectedGraph()
 		graph.put_vertex("movie_a", "a")
 		graph.put_vertex("movie_b", "b")
 		graph.put_vertex("movie_c", "c")
