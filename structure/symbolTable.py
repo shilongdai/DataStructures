@@ -178,19 +178,19 @@ class BinarySearchTree(BaseSymbolTable):
 				current = current.right
 		return current
 
-	def _delete_min(self, root, parent):
-		while root.left is not None:
-			parent = root
-			root = root.left
-		parent.left = root.right
-		return root
-
-	def _delete_max(self, root, parent):
-		while root.right is not None:
-			parent = root
+	def _delete_max(self, root):
+		while root.right.right is not None:
 			root = root.right
-		parent.right = root.left
-		return root
+		result = root.right
+		root.right = result.left
+		return result
+
+	def _delete_min(self, root):
+		while root.left.left is not None:
+			root = root.left
+		result = root.left
+		root.left = result.right
+		return result
 
 	def _recursive_delete(self, root, key):
 		if root is None:
@@ -203,10 +203,22 @@ class BinarySearchTree(BaseSymbolTable):
 				return root.left
 			if self._use_pre:
 				self._use_pre = False
-				return self._delete_max(root.left, root)
+				if root.left.right is None:
+					result = root.left
+				else:
+					result = self._delete_max(root.left)
+				result.right = root.right
+				result.left = root.left
+				return result
 			else:
 				self._use_pre = True
-				return self._delete_min(root.right, root)
+				if root.right.left is None:
+					result = root.right
+				else:
+					result = self._delete_min(root.right)
+				result.left = root.left
+				result.right = root.right
+				return self._delete_min(root.right)
 		if key < root.key:
 			root.left = self._recursive_delete(root.left, key)
 		else:
