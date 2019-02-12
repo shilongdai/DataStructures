@@ -69,7 +69,7 @@ class UndirectedGraph:
 class DirectedGraph(UndirectedGraph):
 
 	def __init__(self):
-		UndirectedGraph.__init__()
+		UndirectedGraph.__init__(self)
 
 	def add_edge(self, vertex_a, vertex_b):
 		if vertex_a not in self._adjacency_lists or vertex_b not in self._adjacency_lists:
@@ -227,31 +227,28 @@ class ConnectedComponents:
 				yield k
 
 
-class CycleDetection:
+class UndirectedCycleDetection:
 
 	# assume no self loop or parallel edge
 
 	def __init__(self, impossible):
 		self._marked = {}
 		self._in_cycle = False
-		self._has_cycle = False
+		self.has_cycle = False
 		self._parent_tree = dict()
-		self.looper = impossible
+		self.looper = None
 		self.impossible = impossible
+		self.cycle = []
 
 	def do(self, graph):
 		for vertex_name, vertex in graph.vertices():
 			if vertex_name not in self._marked:
 				self._recursive_dfs(graph, vertex_name, self.impossible)
-				if self._has_cycle:
+				if self.has_cycle:
+					self.cycle = self._do_cycle()
 					return
 
-	def has_cycle(self):
-		return self._has_cycle
-
-	def cycle(self):
-		if not self._has_cycle:
-			raise ValueError("No cycle detected")
+	def _do_cycle(self):
 		result = []
 		next_item = self._parent_tree[self.looper]
 		while next_item != self.looper:
@@ -270,15 +267,53 @@ class CycleDetection:
 					self._parent_tree[vertex_name] = current
 				if current == self.looper:
 					self._in_cycle = False
-				if self._has_cycle:
+				if self.has_cycle:
 					return
 			else:
 				if parent != vertex_name:
 					self._in_cycle = True
-					self._has_cycle = True
+					self.has_cycle = True
 					self._parent_tree[vertex_name] = current
 					self.looper = vertex_name
 					return
+
+
+class DirectedCycleDetection:
+
+	def __init__(self):
+		self._marked = dict()
+		self._on_stack = dict()
+		self.has_cycle = False
+		self._parent_tree = dict()
+		self.looper = None
+		self.cycle = []
+
+	def do(self, directed_graph):
+		for vertex_name, vertex in directed_graph.vertices():
+			if vertex_name not in self._marked:
+				self._dfs(vertex_name, directed_graph)
+			if self.has_cycle:
+				return
+
+	def _dfs(self, vertex, graph):
+		self._marked[vertex] = True
+		self._on_stack[vertex] = True
+		for vertex_name, vertex_node in graph.adjacent(vertex):
+			if vertex_name not in self._marked:
+				self._parent_tree[vertex_name] = vertex
+				self._dfs(vertex_name, graph)
+			else:
+				if vertex_name in self._on_stack:
+					self.has_cycle = True
+					self.looper = vertex_name
+					self.cycle.append(vertex_name)
+					seeker = self._parent_tree[vertex_name]
+					while seeker is not None and seeker != vertex_name:
+						self.cycle.append(seeker)
+					self.cycle.reverse()
+			if self.has_cycle:
+				return
+		del self._on_stack[vertex]
 
 
 class BiparteDetection:
@@ -337,6 +372,35 @@ class GraphProperties:
 
 	def eccentricity(self, vertex_name):
 		return self._reverse_eccentricity[vertex_name]
+
+
+class TopologicalOrder:
+
+	def __init__(self):
+		self.has_order = True
+		self.pre_order = []
+		self.post_order = []
+		self.reverse_post_order = []
+		self._marked = dict()
+
+	def do(self, directed_graph):
+		cycle_detection = DirectedCycleDetection()
+		directed_graph.apply(cycle_detection)
+		self.has_order = not cycle_detection.has_cycle
+		if self.has_order:
+			for vertex_name, vertex in directed_graph.vertices():
+				if vertex_name not in self._marked:
+					self._dfs(vertex_name, directed_graph)
+			self.reverse_post_order.reverse()
+
+	def _dfs(self, vertex, graph):
+		self.pre_order.append(vertex)
+		self._marked[vertex] = True
+		for vertex_name, vertex_node in graph.adjacent(vertex):
+			if vertex_name not in self._marked:
+				self._dfs(vertex_name, graph)
+		self.post_order.append(vertex)
+		self.reverse_post_order.append(vertex)
 
 
 class UndirectedGraphTest(unittest.TestCase):
@@ -492,16 +556,15 @@ class UndirectedGraphTest(unittest.TestCase):
 		self.assertEqual(0, searcher.id("a"))
 
 	def test_cycle_detection(self):
-		searcher = CycleDetection("-1")
+		searcher = UndirectedCycleDetection("-1")
 		graph = UndirectedGraphTest.create_connected_graph()
 		graph.apply(searcher)
-		self.assertTrue(searcher.has_cycle())
-		self.assertEqual("abfd", "".join(searcher.cycle()))
-		print(searcher.cycle())
-		searcher = CycleDetection("-1")
+		self.assertTrue(searcher.has_cycle)
+		self.assertEqual("abfd", "".join(searcher.cycle))
+		searcher = UndirectedCycleDetection("-1")
 		graph = UndirectedGraphTest.create_acyclic_graph()
 		graph.apply(searcher)
-		self.assertFalse(searcher.has_cycle())
+		self.assertFalse(searcher.has_cycle)
 
 	def test_biparte_detection(self):
 		searcher = BiparteDetection()
@@ -520,3 +583,37 @@ class UndirectedGraphTest(unittest.TestCase):
 		self.assertEqual(3, properties.radius)
 		self.assertEqual(6, properties.diameter)
 		self.assertEqual("f", properties.center)
+
+
+class DirectedGraphTest(unittest.TestCase):
+
+	@staticmethod
+	def create_directed_graph():
+		graph = DirectedGraph()
+		for i in range(0, 13):
+			graph.put_vertex(str(i), str(i))
+		graph.add_edge("0", "5")
+		graph.add_edge("0", "1")
+		graph.add_edge("0", "6")
+		graph.add_edge("2", "0")
+		graph.add_edge("2", "3")
+		graph.add_edge("3", "5")
+		graph.add_edge("5", "4")
+		graph.add_edge("6", "4")
+		graph.add_edge("6", "9")
+		graph.add_edge("7", "6")
+		graph.add_edge("8", "7")
+		graph.add_edge("9", "11")
+		graph.add_edge("9", "10")
+		graph.add_edge("9", "12")
+		graph.add_edge("11", "12")
+		return graph
+
+	def testTopologicalOrders(self):
+		graph = DirectedGraphTest.create_directed_graph()
+		order = TopologicalOrder()
+		graph.apply(order)
+		self.assertTrue(order.has_order)
+		self.assertEqual("0541691112102378", "".join(order.pre_order))
+		self.assertEqual("4511211109603278", "".join(order.post_order))
+		self.assertEqual("8723069101112154", "".join(order.reverse_post_order))
