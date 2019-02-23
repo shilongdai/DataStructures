@@ -365,7 +365,7 @@ def _demote(array, k, n):
 
 def heap_sort(array):
 	n = len(array)
-	i = (n - 2) // 2
+	i = n // 2
 	while i >= 0:
 		_demote(array, i, n)
 		i -= 1

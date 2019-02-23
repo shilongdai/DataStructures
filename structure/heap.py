@@ -55,11 +55,6 @@ class BinaryHeap:
 	def _less(self, node_a, node_b):
 		return self._comparator(node_a.key, node_b.key)
 
-	def _exchange(self, node_a, node_b):
-		temp = self._queue[node_a]
-		self._queue[node_a] = self._queue[node_b]
-		self._queue[node_b] = temp
-
 
 class HeapTest(unittest.TestCase):
 
