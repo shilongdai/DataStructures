@@ -65,6 +65,15 @@ class UndirectedGraph:
 		for k, v in self._vertices.items():
 			yield k, v
 
+	def reverse(self):
+		result = DirectedGraph()
+		for k, v in self._vertices.items():
+			result.put_vertex(k, v)
+		for k, adj_lst in self._adjacency_lists.items():
+			for n in adj_lst:
+				result.add_edge(n, k)
+		return result
+
 
 class DirectedGraph(UndirectedGraph):
 
@@ -377,21 +386,15 @@ class GraphProperties:
 class TopologicalOrder:
 
 	def __init__(self):
-		self.has_order = True
 		self.pre_order = []
 		self.post_order = []
 		self.reverse_post_order = []
 		self._marked = dict()
 
 	def do(self, directed_graph):
-		cycle_detection = DirectedCycleDetection()
-		directed_graph.apply(cycle_detection)
-		self.has_order = not cycle_detection.has_cycle
-		if self.has_order:
-			for vertex_name, vertex in directed_graph.vertices():
-				if vertex_name not in self._marked:
-					self._dfs(vertex_name, directed_graph)
-			self.reverse_post_order.reverse()
+		for vertex_name, vertex in directed_graph.vertices():
+			if vertex_name not in self._marked:
+				self._dfs(vertex_name, directed_graph)
 
 	def _dfs(self, vertex, graph):
 		self.pre_order.append(vertex)
@@ -400,7 +403,46 @@ class TopologicalOrder:
 			if vertex_name not in self._marked:
 				self._dfs(vertex_name, graph)
 		self.post_order.append(vertex)
-		self.reverse_post_order.append(vertex)
+		self.reverse_post_order.insert(0, vertex)
+
+
+class StronglyConnectedComponent:
+
+	def __init__(self):
+		self._count = 0
+		self._connected_marker = dict()
+		self._marked = dict()
+
+	def do(self, graph):
+		reverse_post_order = TopologicalOrder()
+		graph.reverse().apply(reverse_post_order)
+		for vertex_name in reverse_post_order.reverse_post_order:
+			if vertex_name not in self._connected_marker:
+				self._recursive_dfs(graph, vertex_name)
+				self._count += 1
+
+	def count(self):
+		return self._count
+
+	def connected(self, a, b):
+		return self._connected_marker[a] == self._connected_marker[b]
+
+	def id(self, vertex_name):
+		if vertex_name not in self._connected_marker:
+			raise KeyError(vertex_name)
+		return self._connected_marker[vertex_name]
+
+	def component(self, id):
+		for k, v in self._connected_marker.items():
+			if v == id:
+				yield k
+
+	def _recursive_dfs(self, graph, vertex_name):
+		self._connected_marker[vertex_name] = self._count;
+		self._marked[vertex_name] = True
+		for name, vertex in graph.adjacent(vertex_name):
+			if not self._marked.get(name, False):
+				self._recursive_dfs(graph, name)
 
 
 class UndirectedGraphTest(unittest.TestCase):
@@ -609,11 +651,50 @@ class DirectedGraphTest(unittest.TestCase):
 		graph.add_edge("11", "12")
 		return graph
 
-	def testTopologicalOrders(self):
+	@staticmethod
+	def create_strongly_connected_graph():
+		graph = DirectedGraph()
+		for i in range(0, 13):
+			graph.put_vertex(str(i), str(i))
+		graph.add_edge("0", "1")
+		graph.add_edge("0", "5")
+		graph.add_edge("2", "0")
+		graph.add_edge("2", "3")
+		graph.add_edge("3", "2")
+		graph.add_edge("3", '5')
+		graph.add_edge("4", "3")
+		graph.add_edge("4", "2")
+		graph.add_edge("5", "4")
+		graph.add_edge("6", "0")
+		graph.add_edge("6", "4")
+		graph.add_edge("6", "9")
+		graph.add_edge("6", "8")
+		graph.add_edge("7", "6")
+		graph.add_edge("7", "9")
+		graph.add_edge("8", "6")
+		graph.add_edge("9", "11")
+		graph.add_edge("9", "10")
+		graph.add_edge("10", '12')
+		graph.add_edge("11", "4")
+		graph.add_edge("11", "12")
+		graph.add_edge("12", "9")
+		return graph
+
+	def test_topological_orders(self):
 		graph = DirectedGraphTest.create_directed_graph()
 		order = TopologicalOrder()
 		graph.apply(order)
-		self.assertTrue(order.has_order)
 		self.assertEqual("0541691112102378", "".join(order.pre_order))
 		self.assertEqual("4511211109603278", "".join(order.post_order))
 		self.assertEqual("8723069101112154", "".join(order.reverse_post_order))
+
+	def test_strongly_connected(self):
+		graph = DirectedGraphTest.create_strongly_connected_graph()
+		scc = StronglyConnectedComponent()
+		graph.apply(scc)
+		self.assertEqual(5, scc.count())
+		self.assertEqual("1", "".join(scc.component(0)))
+		self.assertEqual("05432", "".join(scc.component(1)))
+		self.assertEqual("1112910", "".join(scc.component(2)))
+		self.assertEqual("68", "".join(scc.component(3)))
+		self.assertEqual("7", "".join(scc.component(4)))
