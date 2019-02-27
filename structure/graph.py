@@ -445,6 +445,47 @@ class StronglyConnectedComponent:
 				self._recursive_dfs(graph, name)
 
 
+class CalcDegrees:
+
+	def __init__(self):
+		self._marked = dict()
+		self._in_degrees = dict()
+		self._out_degrees = dict()
+		self.sources = set()
+		self.sinks = set()
+		self.is_map = True
+
+	def do(self, graph):
+		find_possible_sources = TopologicalOrder()
+		graph.apply(find_possible_sources)
+		for vertex in find_possible_sources.reverse_post_order:
+			if vertex not in self._marked:
+				self.sources.add(vertex)
+				self._recursive_dfs(graph, vertex)
+
+	def in_degrees(self, vertex_name):
+		return self._in_degrees[vertex_name]
+
+	def out_degrees(self, vertex_name):
+		return self._out_degrees[vertex_name]
+
+	def _recursive_dfs(self, graph, vertex_name):
+		self._marked[vertex_name] = True
+		count = 0
+		for name, vertex in graph.adjacent(vertex_name):
+			count += 1
+			self._in_degrees[name] = self._in_degrees.get(name, 0) + 1
+			if name in self.sinks:
+				self.sinks.remove(name)
+			if not self._marked.get(name, False):
+				self._recursive_dfs(graph, name)
+		self._out_degrees[vertex_name] = count
+		if not count:
+			self.sinks.add(vertex_name)
+		if count != 1:
+			self.is_map = False
+
+
 class UndirectedGraphTest(unittest.TestCase):
 
 	@staticmethod
@@ -698,3 +739,17 @@ class DirectedGraphTest(unittest.TestCase):
 		self.assertEqual("1112910", "".join(scc.component(2)))
 		self.assertEqual("68", "".join(scc.component(3)))
 		self.assertEqual("7", "".join(scc.component(4)))
+
+	def test_degrees(self):
+		graph = DirectedGraphTest.create_strongly_connected_graph()
+		degrees = CalcDegrees()
+		graph.apply(degrees)
+		self.assertEqual(3, degrees.in_degrees("9"))
+		self.assertEqual(3, degrees.in_degrees("4"))
+		self.assertEqual(2, degrees.in_degrees("6"))
+		self.assertEqual(2, degrees.out_degrees("9"))
+		self.assertEqual(2, degrees.out_degrees("9"))
+		self.assertEqual(4, degrees.out_degrees("6"))
+		self.assertFalse(degrees.is_map)
+		self.assertEqual("1", "".join(degrees.sinks))
+		self.assertEqual("7", "".join(degrees.sources))
