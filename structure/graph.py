@@ -65,11 +65,20 @@ class UndirectedGraph:
 		for k, v in self._vertices.items():
 			yield k, v
 
+	def reverse(self):
+		result = DirectedGraph()
+		for k, v in self._vertices.items():
+			result.put_vertex(k, v)
+		for k, adj_lst in self._adjacency_lists.items():
+			for n in adj_lst:
+				result.add_edge(n, k)
+		return result
+
 
 class DirectedGraph(UndirectedGraph):
 
 	def __init__(self):
-		UndirectedGraph.__init__()
+		UndirectedGraph.__init__(self)
 
 	def add_edge(self, vertex_a, vertex_b):
 		if vertex_a not in self._adjacency_lists or vertex_b not in self._adjacency_lists:
@@ -227,31 +236,28 @@ class ConnectedComponents:
 				yield k
 
 
-class CycleDetection:
+class UndirectedCycleDetection:
 
 	# assume no self loop or parallel edge
 
 	def __init__(self, impossible):
 		self._marked = {}
 		self._in_cycle = False
-		self._has_cycle = False
+		self.has_cycle = False
 		self._parent_tree = dict()
-		self.looper = impossible
+		self.looper = None
 		self.impossible = impossible
+		self.cycle = []
 
 	def do(self, graph):
 		for vertex_name, vertex in graph.vertices():
 			if vertex_name not in self._marked:
 				self._recursive_dfs(graph, vertex_name, self.impossible)
-				if self._has_cycle:
+				if self.has_cycle:
+					self.cycle = self._do_cycle()
 					return
 
-	def has_cycle(self):
-		return self._has_cycle
-
-	def cycle(self):
-		if not self._has_cycle:
-			raise ValueError("No cycle detected")
+	def _do_cycle(self):
 		result = []
 		next_item = self._parent_tree[self.looper]
 		while next_item != self.looper:
@@ -270,15 +276,53 @@ class CycleDetection:
 					self._parent_tree[vertex_name] = current
 				if current == self.looper:
 					self._in_cycle = False
-				if self._has_cycle:
+				if self.has_cycle:
 					return
 			else:
 				if parent != vertex_name:
 					self._in_cycle = True
-					self._has_cycle = True
+					self.has_cycle = True
 					self._parent_tree[vertex_name] = current
 					self.looper = vertex_name
 					return
+
+
+class DirectedCycleDetection:
+
+	def __init__(self):
+		self._marked = dict()
+		self._on_stack = dict()
+		self.has_cycle = False
+		self._parent_tree = dict()
+		self.looper = None
+		self.cycle = []
+
+	def do(self, directed_graph):
+		for vertex_name, vertex in directed_graph.vertices():
+			if vertex_name not in self._marked:
+				self._dfs(vertex_name, directed_graph)
+			if self.has_cycle:
+				return
+
+	def _dfs(self, vertex, graph):
+		self._marked[vertex] = True
+		self._on_stack[vertex] = True
+		for vertex_name, vertex_node in graph.adjacent(vertex):
+			if vertex_name not in self._marked:
+				self._parent_tree[vertex_name] = vertex
+				self._dfs(vertex_name, graph)
+			else:
+				if vertex_name in self._on_stack:
+					self.has_cycle = True
+					self.looper = vertex_name
+					self.cycle.append(vertex_name)
+					seeker = self._parent_tree[vertex_name]
+					while seeker is not None and seeker != vertex_name:
+						self.cycle.append(seeker)
+					self.cycle.reverse()
+			if self.has_cycle:
+				return
+		del self._on_stack[vertex]
 
 
 class BiparteDetection:
@@ -337,6 +381,68 @@ class GraphProperties:
 
 	def eccentricity(self, vertex_name):
 		return self._reverse_eccentricity[vertex_name]
+
+
+class TopologicalOrder:
+
+	def __init__(self):
+		self.pre_order = []
+		self.post_order = []
+		self.reverse_post_order = []
+		self._marked = dict()
+
+	def do(self, directed_graph):
+		for vertex_name, vertex in directed_graph.vertices():
+			if vertex_name not in self._marked:
+				self._dfs(vertex_name, directed_graph)
+
+	def _dfs(self, vertex, graph):
+		self.pre_order.append(vertex)
+		self._marked[vertex] = True
+		for vertex_name, vertex_node in graph.adjacent(vertex):
+			if vertex_name not in self._marked:
+				self._dfs(vertex_name, graph)
+		self.post_order.append(vertex)
+		self.reverse_post_order.insert(0, vertex)
+
+
+class StronglyConnectedComponent:
+
+	def __init__(self):
+		self._count = 0
+		self._connected_marker = dict()
+		self._marked = dict()
+
+	def do(self, graph):
+		reverse_post_order = TopologicalOrder()
+		graph.reverse().apply(reverse_post_order)
+		for vertex_name in reverse_post_order.reverse_post_order:
+			if vertex_name not in self._connected_marker:
+				self._recursive_dfs(graph, vertex_name)
+				self._count += 1
+
+	def count(self):
+		return self._count
+
+	def connected(self, a, b):
+		return self._connected_marker[a] == self._connected_marker[b]
+
+	def id(self, vertex_name):
+		if vertex_name not in self._connected_marker:
+			raise KeyError(vertex_name)
+		return self._connected_marker[vertex_name]
+
+	def component(self, id):
+		for k, v in self._connected_marker.items():
+			if v == id:
+				yield k
+
+	def _recursive_dfs(self, graph, vertex_name):
+		self._connected_marker[vertex_name] = self._count;
+		self._marked[vertex_name] = True
+		for name, vertex in graph.adjacent(vertex_name):
+			if not self._marked.get(name, False):
+				self._recursive_dfs(graph, name)
 
 
 class UndirectedGraphTest(unittest.TestCase):
@@ -492,16 +598,15 @@ class UndirectedGraphTest(unittest.TestCase):
 		self.assertEqual(0, searcher.id("a"))
 
 	def test_cycle_detection(self):
-		searcher = CycleDetection("-1")
+		searcher = UndirectedCycleDetection("-1")
 		graph = UndirectedGraphTest.create_connected_graph()
 		graph.apply(searcher)
-		self.assertTrue(searcher.has_cycle())
-		self.assertEqual("abfd", "".join(searcher.cycle()))
-		print(searcher.cycle())
-		searcher = CycleDetection("-1")
+		self.assertTrue(searcher.has_cycle)
+		self.assertEqual("abfd", "".join(searcher.cycle))
+		searcher = UndirectedCycleDetection("-1")
 		graph = UndirectedGraphTest.create_acyclic_graph()
 		graph.apply(searcher)
-		self.assertFalse(searcher.has_cycle())
+		self.assertFalse(searcher.has_cycle)
 
 	def test_biparte_detection(self):
 		searcher = BiparteDetection()
@@ -520,3 +625,76 @@ class UndirectedGraphTest(unittest.TestCase):
 		self.assertEqual(3, properties.radius)
 		self.assertEqual(6, properties.diameter)
 		self.assertEqual("f", properties.center)
+
+
+class DirectedGraphTest(unittest.TestCase):
+
+	@staticmethod
+	def create_directed_graph():
+		graph = DirectedGraph()
+		for i in range(0, 13):
+			graph.put_vertex(str(i), str(i))
+		graph.add_edge("0", "5")
+		graph.add_edge("0", "1")
+		graph.add_edge("0", "6")
+		graph.add_edge("2", "0")
+		graph.add_edge("2", "3")
+		graph.add_edge("3", "5")
+		graph.add_edge("5", "4")
+		graph.add_edge("6", "4")
+		graph.add_edge("6", "9")
+		graph.add_edge("7", "6")
+		graph.add_edge("8", "7")
+		graph.add_edge("9", "11")
+		graph.add_edge("9", "10")
+		graph.add_edge("9", "12")
+		graph.add_edge("11", "12")
+		return graph
+
+	@staticmethod
+	def create_strongly_connected_graph():
+		graph = DirectedGraph()
+		for i in range(0, 13):
+			graph.put_vertex(str(i), str(i))
+		graph.add_edge("0", "1")
+		graph.add_edge("0", "5")
+		graph.add_edge("2", "0")
+		graph.add_edge("2", "3")
+		graph.add_edge("3", "2")
+		graph.add_edge("3", '5')
+		graph.add_edge("4", "3")
+		graph.add_edge("4", "2")
+		graph.add_edge("5", "4")
+		graph.add_edge("6", "0")
+		graph.add_edge("6", "4")
+		graph.add_edge("6", "9")
+		graph.add_edge("6", "8")
+		graph.add_edge("7", "6")
+		graph.add_edge("7", "9")
+		graph.add_edge("8", "6")
+		graph.add_edge("9", "11")
+		graph.add_edge("9", "10")
+		graph.add_edge("10", '12')
+		graph.add_edge("11", "4")
+		graph.add_edge("11", "12")
+		graph.add_edge("12", "9")
+		return graph
+
+	def test_topological_orders(self):
+		graph = DirectedGraphTest.create_directed_graph()
+		order = TopologicalOrder()
+		graph.apply(order)
+		self.assertEqual("0541691112102378", "".join(order.pre_order))
+		self.assertEqual("4511211109603278", "".join(order.post_order))
+		self.assertEqual("8723069101112154", "".join(order.reverse_post_order))
+
+	def test_strongly_connected(self):
+		graph = DirectedGraphTest.create_strongly_connected_graph()
+		scc = StronglyConnectedComponent()
+		graph.apply(scc)
+		self.assertEqual(5, scc.count())
+		self.assertEqual("1", "".join(scc.component(0)))
+		self.assertEqual("05432", "".join(scc.component(1)))
+		self.assertEqual("1112910", "".join(scc.component(2)))
+		self.assertEqual("68", "".join(scc.component(3)))
+		self.assertEqual("7", "".join(scc.component(4)))
