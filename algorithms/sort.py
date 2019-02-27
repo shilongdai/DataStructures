@@ -366,9 +366,11 @@ def _demote(array, k, n):
 def heap_sort(array):
 	n = len(array)
 	i = (n - 2) // 2
+	# heapify
 	while i >= 0:
 		_demote(array, i, n)
 		i -= 1
+	# pop largest and put at the end
 	while n > 1:
 		exchange(array, 0, n - 1)
 		n -= 1
