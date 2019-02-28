@@ -1,3 +1,4 @@
+import heapq
 import unittest
 
 from structure.symbolTable import RedBlackTree
@@ -118,6 +119,93 @@ class DepthFirstSearch:
 		for name, vertex in graph.adjacent(vertex_name):
 			if not self._marked.get(name, False):
 				self._recursive_search(graph, name)
+
+
+class Edge:
+
+	def __init__(self, vertex_a, vertex_b, weight):
+		self.vertex_a = vertex_a
+		self.vertex_b = vertex_b
+		self.weight = weight
+
+	def either(self):
+		return self.vertex_a
+
+	def other(self, vertex):
+		if vertex == self.vertex_a:
+			return self.vertex_b
+		if vertex == self.vertex_b:
+			return self.vertex_a
+		return None
+
+	def __lt__(self, other):
+		return self.weight < other.weight
+
+	def __gt__(self, other):
+		return self.weight > other.weight
+
+	def __ge__(self, other):
+		return self.weight >= other.weight
+
+	def __le__(self, other):
+		return self.weight <= other.weight
+
+	def __eq__(self, other):
+		if self.vertex_a != other.vertex_a and self.vertex_a != other.vertex_b:
+			return False
+		if self.vertex_b != other.vertex_a and self.vertex_a != other.vertex_b:
+			return False
+		if self.weight != other.weight:
+			return False
+		return True
+
+	def __ne__(self, other):
+		return not self == other
+
+	def __hash__(self):
+		hash_code = 7
+		hash_code = 31 * hash_code + self.weight
+		hash_code = 31 * hash_code + hash(self.vertex_a)
+		hash_code = 31 * hash_code + hash(self.vertex_b)
+		return hash_code;
+
+
+class EdgeWeightedGraph:
+
+	def __init__(self):
+		self._adj_lists = dict()
+		self._vertices = dict()
+		self._edge_count = 0
+
+	def vertex_count(self):
+		return len(self._adj_lists)
+
+	def edge_count(self):
+		return self._edge_count
+
+	def put_vertex(self, vertex_name, vertex):
+		self._vertices[vertex_name] = vertex
+		if vertex_name not in self._adj_lists:
+			self._adj_lists[vertex_name] = []
+
+	def add_edge(self, edge):
+		self._adj_lists[edge.vertex_a].append(edge)
+		self._adj_lists[edge.vertex_b].append(edge)
+
+	def adjacent(self, vertex_name):
+		return self._adj_lists[vertex_name]
+
+	def edges(self):
+		for k, v in self._adj_lists.items():
+			for i in v:
+				yield i
+
+	def vertices(self):
+		for k, v in self._vertices.items():
+			yield k, v
+
+	def apply(self, ops):
+		ops.do(self)
 
 
 class PathSearch:
@@ -486,6 +574,38 @@ class CalcDegrees:
 			self.is_map = False
 
 
+class LazyPrimMST:
+
+	def __init__(self):
+		self._marked = dict()
+		self._min_heap = []
+		self.mst = []
+		self.weight = 0
+
+	def do(self, graph):
+		if graph.vertex_count() == 0:
+			return
+		first_v_name, first_v_value = next(graph.vertices())
+		self._schedule(graph, first_v_name)
+		while self._min_heap:
+			next_edge = heapq.heappop(self._min_heap)
+			vert_a, vert_b = next_edge.vertex_a, next_edge.vertex_b
+			if vert_a in self._marked and vert_b in self._marked:
+				continue
+			self.mst.append(next_edge)
+			self.weight += next_edge.weight
+			if vert_a in self._marked:
+				self._schedule(graph, vert_b)
+			if vert_b in self._marked:
+				self._schedule(graph, vert_a)
+
+	def _schedule(self, graph, vertex):
+		self._marked[vertex] = True
+		for edge in graph.adjacent(vertex):
+			if edge.other(vertex) not in self._marked:
+				heapq.heappush(self._min_heap, edge)
+
+
 class UndirectedGraphTest(unittest.TestCase):
 
 	@staticmethod
@@ -753,3 +873,35 @@ class DirectedGraphTest(unittest.TestCase):
 		self.assertFalse(degrees.is_map)
 		self.assertEqual("1", "".join(degrees.sinks))
 		self.assertEqual("7", "".join(degrees.sources))
+
+
+class MSTTest(unittest.TestCase):
+
+	@staticmethod
+	def create_graph():
+		result = EdgeWeightedGraph()
+		for i in range(0, 8):
+			result.put_vertex(str(i), str(i))
+		result.add_edge(Edge("4", "5", 0.35))
+		result.add_edge(Edge("4", "7", 0.37))
+		result.add_edge(Edge("5", "7", 0.28))
+		result.add_edge(Edge("0", "7", 0.16))
+		result.add_edge(Edge("1", "5", 0.32))
+		result.add_edge(Edge("0", "4", 0.38))
+		result.add_edge(Edge("2", "3", 0.17))
+		result.add_edge(Edge("1", "7", 0.19))
+		result.add_edge(Edge("0", "2", 0.26))
+		result.add_edge(Edge("1", "2", 0.36))
+		result.add_edge(Edge("1", "3", 0.29))
+		result.add_edge(Edge("2", "7", 0.34))
+		result.add_edge(Edge("6", "2", 0.4))
+		result.add_edge(Edge("3", "6", 0.52))
+		result.add_edge(Edge("6", "0", 0.58))
+		result.add_edge(Edge("6", "4", 0.93))
+		return result
+
+	def testLazyPrim(self):
+		graph = MSTTest.create_graph()
+		prim_mst = LazyPrimMST()
+		graph.apply(prim_mst)
+		self.assertEqual(1.81, prim_mst.weight)
