@@ -164,10 +164,11 @@ class Edge:
 
 	def __hash__(self):
 		hash_code = 7
-		hash_code = 31 * hash_code + self.weight
-		hash_code = 31 * hash_code + hash(self.vertex_a)
-		hash_code = 31 * hash_code + hash(self.vertex_b)
-		return hash_code;
+		hash_code = 31 * hash_code + hash(self.weight)
+		hash_a = 31 * hash(self.vertex_a)
+		hash_b = 31 * hash(self.vertex_b)
+		hash_code = 31 * hash_code + hash(hash_a * hash_b)
+		return hash_code
 
 
 class EdgeWeightedGraph:
@@ -904,4 +905,12 @@ class MSTTest(unittest.TestCase):
 		graph = MSTTest.create_graph()
 		prim_mst = LazyPrimMST()
 		graph.apply(prim_mst)
+		correct_result = set()
+		correct_result.add(Edge("0", "7", 0.16))
+		correct_result.add(Edge("1", "7", 0.19))
+		correct_result.add(Edge("0", "2", 0.26))
+		correct_result.add(Edge("2", "3", 0.17))
+		correct_result.add(Edge("5", "7", 0.28))
+		correct_result.add(Edge("4", "5", 0.35))
+		correct_result.add(Edge("6", "2", 0.40))
 		self.assertEqual(1.81, prim_mst.weight)
