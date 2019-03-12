@@ -30,11 +30,12 @@ class QuickFind(UnionFind):
 
 	def add_node(self, id_num, data):
 		node = Node(id_num, data)
-		self._nodes[id_num] = node
-		self._group_count += 1
+		if id_num not in self._nodes:
+			self._nodes[id_num] = node
+			self._group_count += 1
 
 	def find(self, id_num):
-		if id_num > len(self._nodes):
+		if id_num not in self._nodes:
 			raise IndexError("The id " + id_num + " does not exists")
 		return self._nodes[id_num].group_id
 
@@ -51,6 +52,9 @@ class QuickFind(UnionFind):
 	def group_count(self):
 		return self._group_count
 
+	def __contains__(self, item):
+		return item in self._nodes
+
 
 class QuickUnion(UnionFind):
 
@@ -59,9 +63,10 @@ class QuickUnion(UnionFind):
 		self._group_count = 0
 
 	def add_node(self, id_num, data):
-		node = ForestTreeNode(id_num, id_num, data)
-		self._nodes[id_num] = node
-		self._group_count += 1
+		if id_num not in self:
+			node = ForestTreeNode(id_num, id_num, data)
+			self._nodes[id_num] = node
+			self._group_count += 1
 
 	def find(self, id_num):
 		return self._find_root(id_num).group_id
@@ -83,6 +88,9 @@ class QuickUnion(UnionFind):
 			current = self._nodes[current.parent]
 		return current
 
+	def __contains__(self, item):
+		return item in self._nodes
+
 
 class BalancedQuickUnion(QuickUnion):
 
@@ -91,8 +99,9 @@ class BalancedQuickUnion(QuickUnion):
 		self._counts = {}
 
 	def add_node(self, id_num, data):
-		QuickUnion.add_node(self, id_num, data)
-		self._counts[id_num] = 1
+		if id_num not in self:
+			QuickUnion.add_node(self, id_num, data)
+			self._counts[id_num] = 1
 
 	def union(self, id_1, id_2):
 		root_1 = self._find_root(id_1)
@@ -141,7 +150,7 @@ class UnionFindTest:
 
 	def test_erdos_renyi(self):
 		finder = self._get_union_find()
-		n = 10000
+		n = 1000
 		for i in range(n):
 			finder.add_node(i, i)
 		random.seed(n)

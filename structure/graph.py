@@ -2,6 +2,7 @@ import heapq
 import unittest
 
 from structure.symbolTable import RedBlackTree
+from structure.unionFind import BalancedQuickUnion
 
 
 class UndirectedGraph:
@@ -608,6 +609,30 @@ class LazyPrimMST:
 				heapq.heappush(self._min_heap, edge)
 
 
+class KruskalMST:
+
+	def __init__(self):
+		self._ds = BalancedQuickUnion()
+		self._min_heap = []
+		self.mst = []
+		self.weight = 0
+
+	def do(self, graph):
+		if graph.vertex_count() == 0:
+			return
+		for edge in graph.edges():
+			heapq.heappush(self._min_heap, edge)
+			self._ds.add_node(edge.vertex_a, "")
+			self._ds.add_node(edge.vertex_b, "")
+		while len(self._min_heap) != 0:
+			next_edge = heapq.heappop(self._min_heap)
+			if self._ds.connected(next_edge.vertex_a, next_edge.vertex_b):
+				continue
+			self.mst.append(next_edge)
+			self.weight += next_edge.weight
+			self._ds.union(next_edge.vertex_b, next_edge.vertex_a)
+
+
 class UndirectedGraphTest(unittest.TestCase):
 
 	@staticmethod
@@ -900,12 +925,7 @@ class MSTTest(unittest.TestCase):
 		result.add_edge(Edge("3", "6", 0.52))
 		result.add_edge(Edge("6", "0", 0.58))
 		result.add_edge(Edge("6", "4", 0.93))
-		return result
 
-	def testLazyPrim(self):
-		graph = MSTTest.create_graph()
-		prim_mst = LazyPrimMST()
-		graph.apply(prim_mst)
 		correct_result = set()
 		correct_result.add(Edge("0", "7", 0.16))
 		correct_result.add(Edge("1", "7", 0.19))
@@ -914,5 +934,18 @@ class MSTTest(unittest.TestCase):
 		correct_result.add(Edge("5", "7", 0.28))
 		correct_result.add(Edge("4", "5", 0.35))
 		correct_result.add(Edge("6", "2", 0.40))
+		return result, correct_result
+
+	def testLazyPrim(self):
+		graph, correct_result = MSTTest.create_graph()
+		prim_mst = LazyPrimMST()
+		graph.apply(prim_mst)
 		self.assertSetEqual(correct_result, set(prim_mst.mst))
 		self.assertEqual(1.81, prim_mst.weight)
+
+	def testKruskal(self):
+		graph, correct_result = MSTTest.create_graph()
+		kruskal = KruskalMST()
+		graph.apply(kruskal)
+		self.assertSetEqual(correct_result, set(kruskal.mst))
+		self.assertEqual(1.81, kruskal.weight)
