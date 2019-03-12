@@ -153,7 +153,7 @@ class Edge:
 	def __eq__(self, other):
 		if self.vertex_a != other.vertex_a and self.vertex_a != other.vertex_b:
 			return False
-		if self.vertex_b != other.vertex_a and self.vertex_a != other.vertex_b:
+		if self.vertex_b != other.vertex_a and self.vertex_b != other.vertex_b:
 			return False
 		if self.weight != other.weight:
 			return False
@@ -165,10 +165,11 @@ class Edge:
 	def __hash__(self):
 		hash_code = 7
 		hash_code = 31 * hash_code + hash(self.weight)
-		hash_a = 31 * hash(self.vertex_a)
-		hash_b = 31 * hash(self.vertex_b)
-		hash_code = 31 * hash_code + hash(hash_a * hash_b)
+		hash_code = 31 * hash_code + hash(self.vertex_a) + hash(self.vertex_b)
 		return hash_code
+
+	def __repr__(self):
+		return str(self.__dict__)
 
 
 class EdgeWeightedGraph:
@@ -913,4 +914,5 @@ class MSTTest(unittest.TestCase):
 		correct_result.add(Edge("5", "7", 0.28))
 		correct_result.add(Edge("4", "5", 0.35))
 		correct_result.add(Edge("6", "2", 0.40))
+		self.assertSetEqual(correct_result, set(prim_mst.mst))
 		self.assertEqual(1.81, prim_mst.weight)
