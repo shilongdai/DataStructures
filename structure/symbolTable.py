@@ -579,7 +579,8 @@ class OpenAddressHashTable(BaseSymbolTable):
 		self._table_size = m
 		self._size = 0
 		for k, v in old_table:
-			self[k] = v
+			if k is not None:
+				self[k] = v
 
 	def _hash(self, k):
 		hash_val = abs(hash(k))
