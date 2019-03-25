@@ -173,6 +173,33 @@ class Edge:
 		return str(self.__dict__)
 
 
+class WeightedEdge:
+
+	def __init__(self, src, dest, weight):
+		self.src = src
+		self.dest = dest
+		self.weight = weight
+
+	def __eq__(self, other):
+		if self.src != other.src:
+			return False
+		if self.dest != other.dest:
+			return False
+		if self.weight != other.weight:
+			return False
+		return True
+
+	def __ne__(self, other):
+		return not self == other
+
+	def __hash__(self):
+		hash_code = 7
+		hash_code = 31 * hash_code + hash(self.weight)
+		hash_code = 31 * hash_code + hash(self.src)
+		hash_code = 31 * hash_code + hash(self.dest)
+		return hash_code
+
+
 class EdgeWeightedGraph:
 
 	def __init__(self):
@@ -209,6 +236,12 @@ class EdgeWeightedGraph:
 
 	def apply(self, ops):
 		ops.do(self)
+
+
+class DirectedEdgeWeightedGraph(EdgeWeightedGraph):
+
+	def add_edge(self, edge):
+		self._adj_lists[edge.src].append(edge)
 
 
 class PathSearch:
