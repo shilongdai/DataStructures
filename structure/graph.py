@@ -192,6 +192,18 @@ class WeightedEdge:
 	def __ne__(self, other):
 		return not self == other
 
+	def __lt__(self, other):
+		return self.weight < other.weight
+
+	def __gt__(self, other):
+		return self.weight > other.weight
+
+	def __ge__(self, other):
+		return self.weight >= other.weight
+
+	def __le__(self, other):
+		return self.weight <= other.weight
+
 	def __hash__(self):
 		hash_code = 7
 		hash_code = 31 * hash_code + hash(self.weight)
@@ -238,10 +250,41 @@ class EdgeWeightedGraph:
 		ops.do(self)
 
 
-class DirectedEdgeWeightedGraph(EdgeWeightedGraph):
+class DirectedEdgeWeightedGraph:
+
+	def __init__(self):
+		self._adj_lists = dict()
+		self._vertices = dict()
+		self._edge_count = 0
+
+	def vertex_count(self):
+		return len(self._adj_lists)
+
+	def edge_count(self):
+		return self._edge_count
+
+	def put_vertex(self, vertex_name, vertex):
+		self._vertices[vertex_name] = vertex
+		if vertex_name not in self._adj_lists:
+			self._adj_lists[vertex_name] = []
 
 	def add_edge(self, edge):
 		self._adj_lists[edge.src].append(edge)
+
+	def adjacent(self, vertex_name):
+		return self._adj_lists[vertex_name]
+
+	def edges(self):
+		for k, v in self._adj_lists.items():
+			for i in v:
+				yield i
+
+	def vertices(self):
+		for k, v in self._vertices.items():
+			yield k, v
+
+	def apply(self, ops):
+		ops.do(self)
 
 
 class PathSearch:
@@ -666,6 +709,66 @@ class KruskalMST:
 			self._ds.union(next_edge.vertex_b, next_edge.vertex_a)
 
 
+class ShortestPath:
+
+	def __init__(self, origin):
+		self._dist_to = {}
+		self._edge_to = {}
+		self._dist_to[origin] = 0
+		self._origin = origin
+
+	def dist_to(self, vertex):
+		return self._dist_to.get(vertex, float("inf"))
+
+	def has_path(self, vertex):
+		return self._dist_to.get(vertex, float("inf")) < float("inf")
+
+	def path_to(self, vertex):
+		if not self.has_path(vertex):
+			return None
+		current = vertex
+		path = []
+		while True:
+			parent = self._edge_to[current]
+			if parent is None:
+				break
+			path.append(parent)
+		path.reverse()
+		return path
+
+
+def _heap_contains(heap, item):
+	for i in heap:
+		if i == item:
+			return True
+	return False
+
+
+class DijkstraShortestPath(ShortestPath):
+
+	def __init__(self, origin):
+		ShortestPath.__init__(self, origin)
+		self._min_heap = []
+
+	def do(self, graph):
+		self._relax_adj(graph, self._origin)
+		while len(self._min_heap) != 0:
+			next_edge = heapq.heappop(self._min_heap)
+			self._relax_adj(graph, next_edge.dest)
+
+	def _relax(self, edge):
+		src = edge.src
+		dest = edge.dest
+		if self._dist_to.get(dest, float("inf")) > self._dist_to.get(src, float("inf")) + edge.weight:
+			self._dist_to[dest] = self._dist_to[src] + edge.weight
+			self._edge_to[dest] = edge
+			heapq.heappush(self._min_heap, edge)
+
+	def _relax_adj(self, graph, vertex):
+		for e in graph.adjacent(vertex):
+			self._relax(e)
+
+
 class UndirectedGraphTest(unittest.TestCase):
 
 	@staticmethod
@@ -982,3 +1085,55 @@ class MSTTest(unittest.TestCase):
 		graph.apply(kruskal)
 		self.assertSetEqual(correct_result, set(kruskal.mst))
 		self.assertEqual(1.81, kruskal.weight)
+
+
+class ShortestPathTest(unittest.TestCase):
+
+	@staticmethod
+	def create_test_graph():
+		graph = DirectedEdgeWeightedGraph()
+		graph.put_vertex("5", "5")
+		graph.put_vertex("4", "4")
+		graph.put_vertex("1", "1")
+		graph.put_vertex("7", "7")
+		graph.put_vertex("0", "0")
+		graph.put_vertex("3", "3")
+		graph.put_vertex("2", "2")
+		graph.put_vertex("6", "6")
+
+		graph.add_edge(WeightedEdge("4", "5", 0.35))
+		graph.add_edge(WeightedEdge("5", "4", 0.35))
+		graph.add_edge(WeightedEdge("4", "7", 0.37))
+		graph.add_edge(WeightedEdge("5", "7", 0.28))
+		graph.add_edge(WeightedEdge("7", "5", 0.28))
+		graph.add_edge(WeightedEdge("5", "1", 0.32))
+		graph.add_edge(WeightedEdge("0", "4", 0.38))
+		graph.add_edge(WeightedEdge("0", "2", 0.26))
+		graph.add_edge(WeightedEdge("7", "3", 0.39))
+		graph.add_edge(WeightedEdge("1", "3", 0.29))
+		graph.add_edge(WeightedEdge("2", "7", 0.34))
+		graph.add_edge(WeightedEdge("6", "2", 0.40))
+		graph.add_edge(WeightedEdge("3", "6", 0.52))
+		graph.add_edge(WeightedEdge("6", "0", 0.58))
+		graph.add_edge(WeightedEdge("6", "4", 0.93))
+
+		return graph
+
+	def test_algorithm(self):
+		graph = ShortestPathTest.create_test_graph()
+		alg = self._get_alg("0")
+		graph.apply(alg)
+		self.assertAlmostEqual(0, alg.dist_to("0"))
+		self.assertAlmostEqual(1.05, alg.dist_to("1"))
+		self.assertAlmostEqual(0.26, alg.dist_to("2"))
+		self.assertAlmostEqual(0.99, alg.dist_to("3"))
+		self.assertAlmostEqual(0.38, alg.dist_to("4"))
+		self.assertAlmostEqual(0.73, alg.dist_to("5"))
+		self.assertAlmostEqual(1.51, alg.dist_to("6"))
+		self.assertAlmostEqual(0.60, alg.dist_to("7"))
+
+
+class DijkstraTest(ShortestPathTest):
+
+	def _get_alg(self, origin):
+		return DijkstraShortestPath(origin)
