@@ -156,7 +156,7 @@ class Edge:
 			return False
 		if self.vertex_b != other.vertex_a and self.vertex_b != other.vertex_b:
 			return False
-		if self.weight != other.weight:
+		if abs(self.weight - other.weight) > 0.0000001:
 			return False
 		return True
 
@@ -165,7 +165,7 @@ class Edge:
 
 	def __hash__(self):
 		hash_code = 7
-		hash_code = 31 * hash_code + hash(self.weight)
+		hash_code = 31 * hash_code + hash(round(self.weight, 7))
 		hash_code = 31 * hash_code + hash(self.vertex_a) + hash(self.vertex_b)
 		return hash_code
 
@@ -185,7 +185,7 @@ class WeightedEdge:
 			return False
 		if self.dest != other.dest:
 			return False
-		if self.weight != other.weight:
+		if abs(self.weight - other.weight) > 0.0000001:
 			return False
 		return True
 
@@ -206,10 +206,13 @@ class WeightedEdge:
 
 	def __hash__(self):
 		hash_code = 7
-		hash_code = 31 * hash_code + hash(self.weight)
+		hash_code = 31 * hash_code + hash(round(self.weight, 7))
 		hash_code = 31 * hash_code + hash(self.src)
 		hash_code = 31 * hash_code + hash(self.dest)
 		return hash_code
+
+	def __repr__(self):
+		return str(self.__dict__)
 
 
 class EdgeWeightedGraph:
@@ -573,6 +576,29 @@ class TopologicalOrder:
 		self.reverse_post_order.insert(0, vertex)
 
 
+class EdgeWeightedTopologicalOrder:
+
+	def __init__(self, starting_point):
+		self.pre_order = []
+		self.post_order = []
+		self.reverse_post_order = []
+		self._marked = dict()
+		self._start = starting_point
+
+	def do(self, directed_graph):
+		for edge in directed_graph.adjacent(self._start):
+			self._dfs(edge, directed_graph)
+
+	def _dfs(self, edge, graph):
+		self.pre_order.append(edge)
+		self._marked[edge.src] = True
+		for adj_edge in graph.adjacent(edge.dest):
+			if adj_edge.dest not in self._marked:
+				self._dfs(adj_edge, graph)
+		self.post_order.append(edge)
+		self.reverse_post_order.insert(0, edge)
+
+
 class StronglyConnectedComponent:
 
 	def __init__(self):
@@ -729,19 +755,13 @@ class ShortestPath:
 		current = vertex
 		path = []
 		while True:
-			parent = self._edge_to[current]
+			parent = self._edge_to.get(current, None)
 			if parent is None:
 				break
 			path.append(parent)
+			current = parent.src
 		path.reverse()
 		return path
-
-
-def _heap_contains(heap, item):
-	for i in heap:
-		if i == item:
-			return True
-	return False
 
 
 class DijkstraShortestPath(ShortestPath):
@@ -763,6 +783,29 @@ class DijkstraShortestPath(ShortestPath):
 			self._dist_to[dest] = self._dist_to[src] + edge.weight
 			self._edge_to[dest] = edge
 			heapq.heappush(self._min_heap, edge)
+
+	def _relax_adj(self, graph, vertex):
+		for e in graph.adjacent(vertex):
+			self._relax(e)
+
+
+class TopologicalAcyclicShortestPath(ShortestPath):
+
+	def __init__(self, origin):
+		ShortestPath.__init__(self, origin)
+
+	def do(self, graph):
+		topological = EdgeWeightedTopologicalOrder(self._origin)
+		graph.apply(topological)
+		for i in topological.reverse_post_order:
+			self._relax_adj(graph, i.src)
+
+	def _relax(self, edge):
+		src = edge.src
+		dest = edge.dest
+		if self._dist_to.get(dest, float("inf")) > self._dist_to.get(src, float("inf")) + edge.weight:
+			self._dist_to[dest] = self._dist_to[src] + edge.weight
+			self._edge_to[dest] = edge
 
 	def _relax_adj(self, graph, vertex):
 		for e in graph.adjacent(vertex):
@@ -1132,8 +1175,66 @@ class ShortestPathTest(unittest.TestCase):
 		self.assertAlmostEqual(1.51, alg.dist_to("6"))
 		self.assertAlmostEqual(0.60, alg.dist_to("7"))
 
+		test_path = [WeightedEdge("0", "2", 0.26), WeightedEdge("2", "7", 0.34), WeightedEdge("7", "3", 0.39),
+		             WeightedEdge("3", "6", 0.52)]
+		self.assertEqual(test_path, alg.path_to("6"))
+
+
+class AcyclicShortestPathTest(unittest.TestCase):
+
+	@staticmethod
+	def create_test_graph():
+		graph = DirectedEdgeWeightedGraph()
+		graph.put_vertex("5", "5")
+		graph.put_vertex("4", "4")
+		graph.put_vertex("1", "1")
+		graph.put_vertex("7", "7")
+		graph.put_vertex("0", "0")
+		graph.put_vertex("3", "3")
+		graph.put_vertex("2", "2")
+		graph.put_vertex("6", "6")
+
+		graph.add_edge(WeightedEdge("5", "4", 0.35))
+		graph.add_edge(WeightedEdge("4", "7", 0.37))
+		graph.add_edge(WeightedEdge("5", "7", 0.28))
+		graph.add_edge(WeightedEdge("5", "1", 0.32))
+		graph.add_edge(WeightedEdge("4", "0", 0.38))
+		graph.add_edge(WeightedEdge("0", "2", 0.26))
+		graph.add_edge(WeightedEdge("3", "7", 0.39))
+		graph.add_edge(WeightedEdge("1", "3", 0.29))
+		graph.add_edge(WeightedEdge("7", "2", 0.34))
+		graph.add_edge(WeightedEdge("6", "2", 0.40))
+		graph.add_edge(WeightedEdge("3", "6", 0.52))
+		graph.add_edge(WeightedEdge("6", "0", 0.58))
+		graph.add_edge(WeightedEdge("6", "4", 0.93))
+
+		return graph
+
+	def test_algorithm(self):
+		graph = AcyclicShortestPathTest.create_test_graph()
+		alg = self._get_alg("5")
+		graph.apply(alg)
+		self.assertAlmostEqual(0.73, alg.dist_to("0"))
+		self.assertAlmostEqual(0.32, alg.dist_to("1"))
+		self.assertAlmostEqual(0.62, alg.dist_to("2"))
+		self.assertAlmostEqual(0.61, alg.dist_to("3"))
+		self.assertAlmostEqual(0.35, alg.dist_to("4"))
+		self.assertAlmostEqual(0.00, alg.dist_to("5"))
+		self.assertAlmostEqual(1.13, alg.dist_to("6"))
+		self.assertAlmostEqual(0.28, alg.dist_to("7"))
+
+		test_path = [WeightedEdge("5", "1", 0.32), WeightedEdge("1", "3", 0.29),
+		             WeightedEdge("3", "6", 0.52)]
+		self.assertEqual(test_path, alg.path_to("6"))
+
 
 class DijkstraTest(ShortestPathTest):
 
 	def _get_alg(self, origin):
 		return DijkstraShortestPath(origin)
+
+
+class AcyclicPathTest(AcyclicShortestPathTest):
+
+	def _get_alg(self, origin):
+		return TopologicalAcyclicShortestPath(origin)
