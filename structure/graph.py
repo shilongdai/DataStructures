@@ -631,7 +631,7 @@ class StronglyConnectedComponent:
 				yield k
 
 	def _recursive_dfs(self, graph, vertex_name):
-		self._connected_marker[vertex_name] = self._count;
+		self._connected_marker[vertex_name] = self._count
 		self._marked[vertex_name] = True
 		for name, vertex in graph.adjacent(vertex_name):
 			if not self._marked.get(name, False):
