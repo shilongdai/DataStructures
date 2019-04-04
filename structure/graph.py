@@ -812,6 +812,29 @@ class TopologicalAcyclicShortestPath(ShortestPath):
 			self._relax(e)
 
 
+class TopologicalAcyclicLongestPath(ShortestPath):
+
+	def __init__(self, origin):
+		ShortestPath.__init__(self, origin)
+
+	def do(self, graph):
+		topological = EdgeWeightedTopologicalOrder(self._origin)
+		graph.apply(topological)
+		for i in topological.reverse_post_order:
+			self._relax_adj(graph, i.src)
+
+	def _relax(self, edge):
+		src = edge.src
+		dest = edge.dest
+		if self._dist_to.get(dest, float("-inf")) < self._dist_to.get(src, float("-inf")) + edge.weight:
+			self._dist_to[dest] = self._dist_to[src] + edge.weight
+			self._edge_to[dest] = edge
+
+	def _relax_adj(self, graph, vertex):
+		for e in graph.adjacent(vertex):
+			self._relax(e)
+
+
 class UndirectedGraphTest(unittest.TestCase):
 
 	@staticmethod

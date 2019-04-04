@@ -1,5 +1,3 @@
-import unittest
-
 from structure.graph import *
 
 
@@ -17,7 +15,7 @@ class ParallelPrecedenceJobScheduler:
 		self._graph.put_vertex(start_id, job_id)
 		self._graph.put_vertex(end_id, job_id)
 		self._graph.add_edge(WeightedEdge("_start", start_id, 0))
-		self._graph.add_edge(WeightedEdge(start_id, end_id, time * -1))
+		self._graph.add_edge(WeightedEdge(start_id, end_id, time))
 		self._graph.add_edge(WeightedEdge(end_id, "_end", 0))
 		self._jobs.add(job_id)
 
@@ -26,12 +24,12 @@ class ParallelPrecedenceJobScheduler:
 			self._graph.add_edge(WeightedEdge(self._create_end_id(job), self._create_start_id(i), 0))
 
 	def schedule(self):
-		lp = TopologicalAcyclicShortestPath("_start")
+		lp = TopologicalAcyclicLongestPath("_start")
 		self._graph.apply(lp)
 		result_jobs = dict()
 		for job in self._jobs:
-			result_jobs[job] = lp.dist_to(self._create_start_id(job)) * -1
-		return lp.dist_to("_end") * -1, result_jobs
+			result_jobs[job] = lp.dist_to(self._create_start_id(job))
+		return lp.dist_to("_end"), result_jobs
 
 	@staticmethod
 	def _create_start_id(jid):
