@@ -495,6 +495,45 @@ class DirectedCycleDetection:
 		del self._on_stack[vertex]
 
 
+class EdgeWeightedDirectedCycleDetection:
+
+	def __init__(self):
+		self._marked = dict()
+		self._on_stack = dict()
+		self.has_cycle = False
+		self._parent_tree = dict()
+		self.looper = None
+		self.cycle = []
+
+	def do(self, directed_graph):
+		for vertex_name, vertex in directed_graph.vertices():
+			if vertex_name not in self._marked:
+				self._dfs(vertex_name, directed_graph)
+			if self.has_cycle:
+				return
+
+	def _dfs(self, vertex, graph):
+		self._marked[vertex] = True
+		self._on_stack[vertex] = True
+		for edge in graph.adjacent(vertex):
+			vertex_name = edge.dest
+			if vertex_name not in self._marked:
+				self._parent_tree[vertex_name] = edge
+				self._dfs(vertex_name, graph)
+			else:
+				if vertex_name in self._on_stack:
+					self.has_cycle = True
+					self.looper = vertex_name
+					self.cycle.append(edge)
+					seeker = self._parent_tree[vertex_name]
+					while seeker is not None and seeker.src != vertex_name:
+						self.cycle.append(seeker)
+					self.cycle.reverse()
+			if self.has_cycle:
+				return
+		del self._on_stack[vertex]
+
+
 class BiparteDetection:
 
 	def __init__(self):
@@ -763,6 +802,17 @@ class ShortestPath:
 		path.reverse()
 		return path
 
+	def _relax(self, edge):
+		src = edge.src
+		dest = edge.dest
+		if self._dist_to.get(dest, float("inf")) > self._dist_to.get(src, float("inf")) + edge.weight:
+			self._dist_to[dest] = self._dist_to[src] + edge.weight
+			self._edge_to[dest] = edge
+
+	def _relax_adj(self, graph, vertex):
+		for e in graph.adjacent(vertex):
+			self._relax(e)
+
 
 class DijkstraShortestPath(ShortestPath):
 
@@ -800,17 +850,6 @@ class TopologicalAcyclicShortestPath(ShortestPath):
 		for i in topological.reverse_post_order:
 			self._relax_adj(graph, i.src)
 
-	def _relax(self, edge):
-		src = edge.src
-		dest = edge.dest
-		if self._dist_to.get(dest, float("inf")) > self._dist_to.get(src, float("inf")) + edge.weight:
-			self._dist_to[dest] = self._dist_to[src] + edge.weight
-			self._edge_to[dest] = edge
-
-	def _relax_adj(self, graph, vertex):
-		for e in graph.adjacent(vertex):
-			self._relax(e)
-
 
 class TopologicalAcyclicLongestPath(ShortestPath):
 
@@ -830,9 +869,48 @@ class TopologicalAcyclicLongestPath(ShortestPath):
 			self._dist_to[dest] = self._dist_to[src] + edge.weight
 			self._edge_to[dest] = edge
 
-	def _relax_adj(self, graph, vertex):
-		for e in graph.adjacent(vertex):
-			self._relax(e)
+
+class QueueBellmanFordShortestPath(ShortestPath):
+
+	def __init__(self, origin):
+		ShortestPath.__init__(self, origin)
+		self._queue = []
+		self._on_queue = dict()
+		self._graph = None
+		self._cycle = []
+
+	def do(self, graph):
+		self._graph = graph
+		self._queue.append(self._origin)
+		self._on_queue[self._origin] = True
+		while len(self._queue) != 0 and not self._has_negative_cycle():
+			next_v = self._queue.pop()
+			del self._on_queue[next_v]
+			self._relax_adj(graph, next_v)
+
+	def _relax(self, edge):
+		src = edge.src
+		dest = edge.dest
+		if self._dist_to.get(dest, float("inf")) > self._dist_to.get(src, float("inf")) + edge.weight:
+			self._dist_to[dest] = self._dist_to[src] + edge.weight
+			self._edge_to[dest] = edge
+			if dest not in self._on_queue:
+				self._on_queue[dest] = True
+				self._queue.append(dest)
+		self._find_negative_cycle()
+
+	def _find_negative_cycle(self):
+		sub_graph = DirectedEdgeWeightedGraph()
+		for k, v in self._graph.vertices():
+			sub_graph.put_vertex(k, v)
+		for edge in self._edge_to.values():
+			sub_graph.add_edge(edge)
+		cycle_detector = EdgeWeightedDirectedCycleDetection()
+		sub_graph.apply(cycle_detector)
+		self._cycle = cycle_detector.cycle
+
+	def _has_negative_cycle(self):
+		return len(self._cycle) != 0
 
 
 class UndirectedGraphTest(unittest.TestCase):
@@ -1251,6 +1329,45 @@ class AcyclicShortestPathTest(unittest.TestCase):
 		self.assertEqual(test_path, alg.path_to("6"))
 
 
+class NegativeWeightShortestPathTest(unittest.TestCase):
+
+	@staticmethod
+	def create_test_graph():
+		graph = DirectedEdgeWeightedGraph()
+		for i in range(8):
+			graph.put_vertex(i, i)
+
+		graph.add_edge(WeightedEdge(4, 5, 0.35))
+		graph.add_edge(WeightedEdge(5, 4, 0.35))
+		graph.add_edge(WeightedEdge(4, 7, 0.37))
+		graph.add_edge(WeightedEdge(5, 7, 0.28))
+		graph.add_edge(WeightedEdge(7, 5, 0.28))
+		graph.add_edge(WeightedEdge(5, 1, 0.32))
+		graph.add_edge(WeightedEdge(0, 4, 0.38))
+		graph.add_edge(WeightedEdge(0, 2, 0.26))
+		graph.add_edge(WeightedEdge(7, 3, 0.39))
+		graph.add_edge(WeightedEdge(1, 3, 0.29))
+		graph.add_edge(WeightedEdge(2, 7, 0.34))
+		graph.add_edge(WeightedEdge(6, 2, -1.2))
+		graph.add_edge(WeightedEdge(3, 6, 0.52))
+		graph.add_edge(WeightedEdge(6, 0, -1.4))
+		graph.add_edge(WeightedEdge(6, 4, -1.25))
+		return graph
+
+	def test_algorithm(self):
+		graph = NegativeWeightShortestPathTest.create_test_graph()
+		alg = self._get_alg(0)
+		graph.apply(alg)
+		self.assertAlmostEqual(0, alg.dist_to(0))
+		self.assertAlmostEqual(0.93, alg.dist_to(1))
+		self.assertAlmostEqual(0.26, alg.dist_to(2))
+		self.assertAlmostEqual(0.99, alg.dist_to(3))
+		self.assertAlmostEqual(0.26, alg.dist_to(4))
+		self.assertAlmostEqual(0.61, alg.dist_to(5))
+		self.assertAlmostEqual(1.51, alg.dist_to(6))
+		self.assertAlmostEqual(0.6, alg.dist_to(7))
+
+
 class DijkstraTest(ShortestPathTest):
 
 	def _get_alg(self, origin):
@@ -1261,3 +1378,9 @@ class AcyclicPathTest(AcyclicShortestPathTest):
 
 	def _get_alg(self, origin):
 		return TopologicalAcyclicShortestPath(origin)
+
+
+class QueueBellmanFordPositiveTest(ShortestPathTest, AcyclicShortestPathTest, NegativeWeightShortestPathTest):
+
+	def _get_alg(self, origin):
+		return QueueBellmanFordShortestPath(origin)

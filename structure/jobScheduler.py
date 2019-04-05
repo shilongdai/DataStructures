@@ -9,7 +9,7 @@ class ParallelPrecedenceJobScheduler:
 		self._graph.put_vertex("_end", "_end")
 		self._jobs = set()
 
-	def add_job_by_val(self, job_id, time):
+	def add_job(self, job_id, time):
 		start_id = self._create_start_id(job_id)
 		end_id = self._create_end_id(job_id)
 		self._graph.put_vertex(start_id, job_id)
@@ -45,16 +45,16 @@ class TestJobScheduler(unittest.TestCase):
 	@staticmethod
 	def create_parallel_precedence_scheduler():
 		scheduler = ParallelPrecedenceJobScheduler()
-		scheduler.add_job_by_val(0, 41)
-		scheduler.add_job_by_val(1, 51)
-		scheduler.add_job_by_val(2, 50)
-		scheduler.add_job_by_val(3, 36)
-		scheduler.add_job_by_val(4, 38)
-		scheduler.add_job_by_val(5, 45)
-		scheduler.add_job_by_val(6, 21)
-		scheduler.add_job_by_val(7, 32)
-		scheduler.add_job_by_val(8, 32)
-		scheduler.add_job_by_val(9, 29)
+		scheduler.add_job(0, 41)
+		scheduler.add_job(1, 51)
+		scheduler.add_job(2, 50)
+		scheduler.add_job(3, 36)
+		scheduler.add_job(4, 38)
+		scheduler.add_job(5, 45)
+		scheduler.add_job(6, 21)
+		scheduler.add_job(7, 32)
+		scheduler.add_job(8, 32)
+		scheduler.add_job(9, 29)
 
 		scheduler.required_by(0, (1, 7, 9))
 		scheduler.required_by(1, [2])
