@@ -877,7 +877,7 @@ class QueueBellmanFordShortestPath(ShortestPath):
 		self._queue = []
 		self._on_queue = dict()
 		self._graph = None
-		self._cycle = []
+		self.cycle = []
 
 	def do(self, graph):
 		self._graph = graph
@@ -899,6 +899,11 @@ class QueueBellmanFordShortestPath(ShortestPath):
 				self._queue.append(dest)
 		self._find_negative_cycle()
 
+	def _relax_adj(self, graph, vertex):
+		for e in graph.adjacent(vertex):
+			if e.dest not in self._edge_to or self._edge_to[e.dest].dest not in self._on_queue:
+				self._relax(e)
+
 	def _find_negative_cycle(self):
 		sub_graph = DirectedEdgeWeightedGraph()
 		for k, v in self._graph.vertices():
@@ -907,10 +912,10 @@ class QueueBellmanFordShortestPath(ShortestPath):
 			sub_graph.add_edge(edge)
 		cycle_detector = EdgeWeightedDirectedCycleDetection()
 		sub_graph.apply(cycle_detector)
-		self._cycle = cycle_detector.cycle
+		self.cycle = cycle_detector.cycle
 
 	def _has_negative_cycle(self):
-		return len(self._cycle) != 0
+		return len(self.cycle) != 0
 
 
 class UndirectedGraphTest(unittest.TestCase):
