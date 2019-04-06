@@ -131,4 +131,4 @@ class TestArbitrageCalculator(unittest.TestCase):
 		              "CAD": {"USD": 0.995, "EUR": 0.732, "GBP": 0.65, "CHF": 1.049, "CAD": 1}}
 		calculator = ArbitrageCalculator(currencies)
 		self.assertTrue(calculator.has_opportunity())
-		print(calculator.get_arbitrage_opportunity())
+		self.assertListEqual(["USD", "CHF", "CAD", "USD"], calculator.get_arbitrage_opportunity())
