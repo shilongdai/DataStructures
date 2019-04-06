@@ -887,13 +887,17 @@ class TopologicalAcyclicLongestPath(ShortestPath):
 
 class QueueBellmanFordShortestPath(ShortestPath):
 
-	def __init__(self, origin):
+	def __init__(self, origin, find_negative_cycle = False):
 		ShortestPath.__init__(self, origin)
 		self._queue = []
 		self._on_queue = dict()
 		self._graph = None
 		self.cycle = None
 		self._count = 0
+		if find_negative_cycle:
+			self._default = 0
+		else:
+			self._default = float("inf")
 
 	def do(self, graph):
 		self._graph = graph
@@ -907,7 +911,7 @@ class QueueBellmanFordShortestPath(ShortestPath):
 	def _relax(self, edge):
 		src = edge.src
 		dest = edge.dest
-		if self._dist_to.get(dest, float("inf")) > self._dist_to.get(src, float("inf")) + edge.weight:
+		if self._dist_to.get(dest, self._default) > self._dist_to.get(src, self._default) + edge.weight:
 			self._dist_to[dest] = self._dist_to[src] + edge.weight
 			self._edge_to[dest] = edge
 			if dest not in self._on_queue:
