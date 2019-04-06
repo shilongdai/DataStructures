@@ -331,6 +331,7 @@ class LinkedStack(LinkedList):
 		result = self._start.value
 		return result
 
+
 class LinkedQueue(LinkedList):
 
 	def __init__(self):
