@@ -76,6 +76,9 @@ class UndirectedGraph:
 				result.add_edge(n, k)
 		return result
 
+	def get_vertex(self, name):
+		return self._vertices[name]
+
 
 class DirectedGraph(UndirectedGraph):
 
@@ -252,6 +255,9 @@ class EdgeWeightedGraph:
 	def apply(self, ops):
 		ops.do(self)
 
+	def get_vertex(self, name):
+		return self._vertices[name]
+
 
 class DirectedEdgeWeightedGraph:
 
@@ -288,6 +294,9 @@ class DirectedEdgeWeightedGraph:
 
 	def apply(self, ops):
 		ops.do(self)
+
+	def get_vertex(self, name):
+		return self._vertices[name]
 
 
 class PathSearch:
@@ -485,10 +494,13 @@ class DirectedCycleDetection:
 				if vertex_name in self._on_stack:
 					self.has_cycle = True
 					self.looper = vertex_name
-					self.cycle.append(vertex_name)
-					seeker = self._parent_tree[vertex_name]
-					while seeker is not None and seeker != vertex_name:
+					self.cycle.append(vertex)
+					seeker = self._parent_tree.get(vertex, None)
+					while seeker is not None:
 						self.cycle.append(seeker)
+						if seeker == vertex_name:
+							break
+						seeker = self._parent_tree.get(seeker, None)
 					self.cycle.reverse()
 			if self.has_cycle:
 				return
@@ -525,9 +537,12 @@ class EdgeWeightedDirectedCycleDetection:
 					self.has_cycle = True
 					self.looper = vertex_name
 					self.cycle.append(edge)
-					seeker = self._parent_tree[vertex_name]
-					while seeker is not None and seeker.src != vertex_name:
+					seeker = self._parent_tree.get(vertex, None)
+					while seeker is not None:
 						self.cycle.append(seeker)
+						if seeker.src == vertex_name:
+							break
+						seeker = self._parent_tree.get(seeker.src, None)
 					self.cycle.reverse()
 			if self.has_cycle:
 				return
@@ -877,14 +892,15 @@ class QueueBellmanFordShortestPath(ShortestPath):
 		self._queue = []
 		self._on_queue = dict()
 		self._graph = None
-		self.cycle = []
+		self.cycle = None
+		self._count = 0
 
 	def do(self, graph):
 		self._graph = graph
 		self._queue.append(self._origin)
 		self._on_queue[self._origin] = True
-		while len(self._queue) != 0 and not self._has_negative_cycle():
-			next_v = self._queue.pop()
+		while len(self._queue) != 0 and not self.has_negative_cycle():
+			next_v = self._queue.pop(0)
 			del self._on_queue[next_v]
 			self._relax_adj(graph, next_v)
 
@@ -897,12 +913,9 @@ class QueueBellmanFordShortestPath(ShortestPath):
 			if dest not in self._on_queue:
 				self._on_queue[dest] = True
 				self._queue.append(dest)
-		self._find_negative_cycle()
-
-	def _relax_adj(self, graph, vertex):
-		for e in graph.adjacent(vertex):
-			if e.dest not in self._edge_to or self._edge_to[e.dest].dest not in self._on_queue:
-				self._relax(e)
+		if self._count % self._graph.vertex_count() == 0:
+			self._find_negative_cycle()
+		self._count += 1
 
 	def _find_negative_cycle(self):
 		sub_graph = DirectedEdgeWeightedGraph()
@@ -912,10 +925,11 @@ class QueueBellmanFordShortestPath(ShortestPath):
 			sub_graph.add_edge(edge)
 		cycle_detector = EdgeWeightedDirectedCycleDetection()
 		sub_graph.apply(cycle_detector)
-		self.cycle = cycle_detector.cycle
+		if cycle_detector.has_cycle:
+			self.cycle = cycle_detector.cycle
 
-	def _has_negative_cycle(self):
-		return len(self.cycle) != 0
+	def has_negative_cycle(self):
+		return self.cycle is not None
 
 
 class UndirectedGraphTest(unittest.TestCase):
@@ -1153,6 +1167,23 @@ class DirectedGraphTest(unittest.TestCase):
 		graph.add_edge("12", "9")
 		return graph
 
+	@staticmethod
+	def create_cycle_graph():
+		graph = DirectedGraph()
+		for i in range(0, 3):
+			graph.put_vertex(str(i), str(i))
+		graph.add_edge("0", "1")
+		graph.add_edge("1", "2")
+		graph.add_edge("2", "0")
+		return graph
+
+	def test_cycle_detection(self):
+		graph = DirectedGraphTest.create_cycle_graph()
+		cycle_detect = DirectedCycleDetection()
+		graph.apply(cycle_detect)
+		self.assertTrue(cycle_detect.has_cycle)
+		self.assertListEqual(["0", "1", "2"], cycle_detect.cycle)
+
 	def test_topological_orders(self):
 		graph = DirectedGraphTest.create_directed_graph()
 		order = TopologicalOrder()
@@ -1236,7 +1267,7 @@ class MSTTest(unittest.TestCase):
 		self.assertEqual(1.81, kruskal.weight)
 
 
-class ShortestPathTest(unittest.TestCase):
+class ShortestPathTest:
 
 	@staticmethod
 	def create_test_graph():
@@ -1286,7 +1317,7 @@ class ShortestPathTest(unittest.TestCase):
 		self.assertEqual(test_path, alg.path_to("6"))
 
 
-class AcyclicShortestPathTest(unittest.TestCase):
+class AcyclicShortestPathTest:
 
 	@staticmethod
 	def create_test_graph():
@@ -1334,7 +1365,7 @@ class AcyclicShortestPathTest(unittest.TestCase):
 		self.assertEqual(test_path, alg.path_to("6"))
 
 
-class NegativeWeightShortestPathTest(unittest.TestCase):
+class NegativeWeightShortestPathTest:
 
 	@staticmethod
 	def create_test_graph():
@@ -1359,7 +1390,30 @@ class NegativeWeightShortestPathTest(unittest.TestCase):
 		graph.add_edge(WeightedEdge(6, 4, -1.25))
 		return graph
 
-	def test_algorithm(self):
+	@staticmethod
+	def create_cycle_test_graph():
+		graph = DirectedEdgeWeightedGraph()
+		for i in range(8):
+			graph.put_vertex(i, i)
+
+		graph.add_edge(WeightedEdge(4, 5, 0.35))
+		graph.add_edge(WeightedEdge(5, 4, -0.66))
+		graph.add_edge(WeightedEdge(4, 7, 0.37))
+		graph.add_edge(WeightedEdge(5, 7, 0.28))
+		graph.add_edge(WeightedEdge(7, 5, 0.28))
+		graph.add_edge(WeightedEdge(5, 1, 0.32))
+		graph.add_edge(WeightedEdge(0, 4, 0.38))
+		graph.add_edge(WeightedEdge(0, 2, 0.26))
+		graph.add_edge(WeightedEdge(7, 3, 0.39))
+		graph.add_edge(WeightedEdge(1, 3, 0.29))
+		graph.add_edge(WeightedEdge(2, 7, 0.34))
+		graph.add_edge(WeightedEdge(6, 2, 0.40))
+		graph.add_edge(WeightedEdge(3, 6, 0.52))
+		graph.add_edge(WeightedEdge(6, 0, 0.58))
+		graph.add_edge(WeightedEdge(6, 4, 0.93))
+		return graph
+
+	def test_negative_algorithm(self):
 		graph = NegativeWeightShortestPathTest.create_test_graph()
 		alg = self._get_alg(0)
 		graph.apply(alg)
@@ -1372,20 +1426,27 @@ class NegativeWeightShortestPathTest(unittest.TestCase):
 		self.assertAlmostEqual(1.51, alg.dist_to(6))
 		self.assertAlmostEqual(0.6, alg.dist_to(7))
 
+	def test_neg_algorithm_with_cycle(self):
+		graph = NegativeWeightShortestPathTest.create_cycle_test_graph()
+		alg = self._get_alg(0)
+		graph.apply(alg)
+		self.assertTrue(alg.has_negative_cycle())
 
-class DijkstraTest(ShortestPathTest):
+
+class DijkstraTest(ShortestPathTest, unittest.TestCase):
 
 	def _get_alg(self, origin):
 		return DijkstraShortestPath(origin)
 
 
-class AcyclicPathTest(AcyclicShortestPathTest):
+class AcyclicPathTest(AcyclicShortestPathTest, unittest.TestCase):
 
 	def _get_alg(self, origin):
 		return TopologicalAcyclicShortestPath(origin)
 
 
-class QueueBellmanFordPositiveTest(ShortestPathTest, AcyclicShortestPathTest, NegativeWeightShortestPathTest):
+class QueueBellmanFordTest(ShortestPathTest, AcyclicShortestPathTest, NegativeWeightShortestPathTest,
+                           unittest.TestCase):
 
 	def _get_alg(self, origin):
 		return QueueBellmanFordShortestPath(origin)

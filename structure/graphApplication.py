@@ -1,3 +1,5 @@
+import math
+
 from structure.graph import *
 
 
@@ -40,6 +42,37 @@ class ParallelPrecedenceJobScheduler:
 		return str(jid) + "_end"
 
 
+class ArbitrageCalculator:
+
+	def __init__(self, currencies):
+		self._currencies = set(currencies)
+		self._graph = DirectedEdgeWeightedGraph()
+
+	def set_conversion_rate(self, currency, rates):
+		if rates.keys() != self._currencies:
+			raise KeyError("Invalid rates")
+		self._graph.put_vertex(currency, rates)
+		for c, rate in rates.items():
+			self._graph.add_edge(WeightedEdge(currency, c, -1 * math.log10(rate)))
+
+	def convert(self, src, target):
+		shortest_path = QueueBellmanFordShortestPath(src)
+		self._graph.apply(shortest_path)
+		if shortest_path.has_negative_cycle():
+			raise ValueError("A negative cycle exists")
+		path = shortest_path.path_to(target)
+		result = list()
+		result.append(src)
+		for edge in path:
+			result.append(edge.dest)
+		final_ratio = 1
+		prev_table = self._graph.get_vertex(src)
+		for p in result:
+			final_ratio = final_ratio * prev_table[p]
+			prev_table = self._graph.get_vertex(p)
+		return final_ratio, result
+
+
 class TestJobScheduler(unittest.TestCase):
 
 	@staticmethod
@@ -78,3 +111,18 @@ class TestJobScheduler(unittest.TestCase):
 		self.assertAlmostEqual(41, jobs[7])
 		self.assertAlmostEqual(91, jobs[8])
 		self.assertAlmostEqual(41, jobs[9])
+
+
+class TestArbitrageCalculator(unittest.TestCase):
+
+	def test_calculator(self):
+		calculator = ArbitrageCalculator(("USD", "EUR", "GBP", "CHF", "CAD"))
+		calculator.set_conversion_rate("USD", {"USD": 1, "EUR": 0.741, "GBP": 0.657, "CHF": 1.061, "CAD": 1.005})
+		calculator.set_conversion_rate("EUR", {"USD": 1.349, "EUR": 1, "GBP": 0.888, "CHF": 1.433, "CAD": 1.366})
+		calculator.set_conversion_rate("GBP", {"USD": 1.521, "EUR": 1.126, "GBP": 1, "CHF": 1.614, "CAD": 1.538})
+		calculator.set_conversion_rate("CHF", {"USD": 0.942, "EUR": 0.698, "GBP": 0.619, "CHF": 1, "CAD": 0.953})
+		calculator.set_conversion_rate("CAD", {"USD": 0.995, "EUR": 0.732, "GBP": 0.65, "CHF": 1.049, "CAD": 1})
+
+		rate, path = calculator.convert("USD", "CHF")
+		print(rate)
+		print(path)
