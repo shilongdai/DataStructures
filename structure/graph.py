@@ -1,6 +1,7 @@
 import heapq
 import unittest
 
+import structure.heap as myheap
 from structure.symbolTable import RedBlackTree
 from structure.unionFind import BalancedQuickUnion
 
@@ -833,12 +834,12 @@ class DijkstraShortestPath(ShortestPath):
 
 	def __init__(self, origin):
 		ShortestPath.__init__(self, origin)
-		self._min_heap = []
+		self._min_heap = myheap.BinaryHeap(float.__gt__)
 
 	def do(self, graph):
 		self._relax_adj(graph, self._origin)
 		while len(self._min_heap) != 0:
-			next_edge = heapq.heappop(self._min_heap)
+			next_edge = self._min_heap.pop()
 			self._relax_adj(graph, next_edge.dest)
 
 	def _relax(self, edge):
@@ -847,7 +848,7 @@ class DijkstraShortestPath(ShortestPath):
 		if self._dist_to.get(dest, float("inf")) > self._dist_to.get(src, float("inf")) + edge.weight:
 			self._dist_to[dest] = self._dist_to[src] + edge.weight
 			self._edge_to[dest] = edge
-			heapq.heappush(self._min_heap, edge)
+			self._min_heap.add(self._dist_to[dest], edge)
 
 	def _relax_adj(self, graph, vertex):
 		for e in graph.adjacent(vertex):
