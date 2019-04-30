@@ -420,6 +420,80 @@ def random_array(n, low = 0, high = 1000):
 	return arr
 
 
+def type_counting_sort(n, types, type_f):
+	type_enum = {}
+	i = 0
+	for t in types:
+		type_enum[t] = i
+		i += 1
+	type_count = [0 for i in range(i + 1)]
+	for i in n:
+		type_t = type_f(i)
+		type_i = type_enum[type_t]
+		type_count[type_i + 1] = type_count[type_i + 1] + 1
+	for j in range(len(type_enum)):
+		type_count[j + 1] = type_count[j] + type_count[j + 1]
+	aux = [None for i in range(len(n))]
+	for i in n:
+		type_t = type_f(i)
+		type_i = type_enum[type_t]
+		aux[type_count[type_i]] = i
+		type_count[type_i] += 1
+	for i in range(len(n)):
+		n[i] = aux[i]
+
+
+def lsd_string_sort(strings, charset):
+	if len(strings) == 0:
+		return
+	str_len = len(strings[0])
+	for i in range(str_len):
+		i = -1 - i
+		type_counting_sort(strings, charset, lambda t: t[i])
+
+
+def msd_string_sort(strings, charset):
+	type_enum = {}
+	i = 0
+	for t in charset:
+		type_enum[t] = i
+		i += 1
+	aux = [None for i in range(len(strings))]
+	msd_string_sort_recursive(strings, aux, 0, len(strings), 0, type_enum)
+
+
+def msd_string_sort_recursive(strings, aux, low, high, current, type_enum):
+	if high <= low:
+		return
+	type_count = [0 for i in range(len(type_enum) + 2)]
+	for i in range(low, high):
+		i = strings[i]
+		if current >= len(i):
+			type_i = -1
+		else:
+			type_t = i[current]
+			type_i = type_enum[type_t]
+		type_i += 1
+		type_count[type_i + 1] = type_count[type_i + 1] + 1
+	for j in range(len(type_enum) + 1):
+		type_count[j + 1] = type_count[j] + type_count[j + 1]
+	for i in range(low, high):
+		i = strings[i]
+		if current >= len(i):
+			type_i = -1
+		else:
+			type_t = i[current]
+			type_i = type_enum[type_t]
+		type_i += 1
+		aux[type_count[type_i]] = i
+		type_count[type_i] += 1
+	for i in range(low, high):
+		strings[i] = aux[i - low]
+	for type_i in type_enum.values():
+		msd_string_sort_recursive(strings, aux, low + type_count[type_i], low + type_count[type_i + 1], current + 1,
+		                          type_enum)
+
+
 class SortingTest:
 
 	def test_sort(self):
@@ -515,6 +589,52 @@ class InversionTest(unittest.TestCase):
 		n = 10000
 		to_sort = random_array(n, 0, 1000)
 		self.assertEqual(naive_inversions(to_sort), inversions(to_sort))
+
+
+class TypeCountSortTest(unittest.TestCase):
+
+	def test_sort(self):
+		n = 10000
+		r = 5
+		array = []
+		for i in range(n):
+			array.append(random.randint(0, r - 1))
+		type_counting_sort(array, [i for i in range(0, r)], lambda t: t)
+		for i in range(1, n):
+			self.assertTrue(array[i] >= array[i - 1], "Sorting algorithm failed to put everything in order")
+
+
+class LSDStringSortTest(unittest.TestCase):
+
+	def test_sort(self):
+		n = 10000
+		length = 4
+		charset = "ACGT"
+		strings = []
+		for i in range(n):
+			s = []
+			for j in range(length):
+				s.append(charset[random.randint(0, len(charset) - 1)])
+			strings.append("".join(s))
+		lsd_string_sort(strings, charset)
+		for i in range(1, n):
+			self.assertTrue(strings[i] >= strings[i - 1], "Sorting algorithm failed to put everything in order")
+
+
+class MSDStringSortTest(unittest.TestCase):
+
+	def test_sort(self):
+		n = 10000
+		charset = "ACGT"
+		strings = []
+		for i in range(n):
+			s = []
+			for j in range(random.randint(0, 16)):
+				s.append(charset[random.randint(0, len(charset) - 1)])
+			strings.append("".join(s))
+		msd_string_sort(strings, charset)
+		for i in range(1, n):
+			self.assertTrue(strings[i] >= strings[i - 1], "Sorting algorithm failed to put everything in order")
 
 
 if __name__ == "__main__":
