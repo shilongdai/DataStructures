@@ -1,5 +1,6 @@
 import functools
 import random
+import string
 import timeit
 import unittest
 
@@ -452,6 +453,16 @@ def lsd_string_sort(strings, charset):
 		type_counting_sort(strings, charset, lambda t: t[i])
 
 
+def _range_string_insertion_sort(array, low, high, index):
+	for i in range(low + 1, high):
+		insertion_point = i
+		insertion_val = array[i]
+		while insertion_point > low and array[insertion_point - 1][index:] > insertion_val[index:]:
+			array[insertion_point] = array[insertion_point - 1]
+			insertion_point -= 1
+		array[insertion_point] = insertion_val
+
+
 def msd_string_sort(strings, charset):
 	type_enum = {}
 	i = 0
@@ -463,7 +474,8 @@ def msd_string_sort(strings, charset):
 
 
 def msd_string_sort_recursive(strings, aux, low, high, current, type_enum):
-	if high <= low:
+	if high <= low + 15:
+		_range_string_insertion_sort(strings, low, high, current)
 		return
 	type_count = [0 for i in range(len(type_enum) + 2)]
 	for i in range(low, high):
@@ -625,7 +637,7 @@ class MSDStringSortTest(unittest.TestCase):
 
 	def test_sort(self):
 		n = 10000
-		charset = "ACGT"
+		charset = sorted(string.printable)
 		strings = []
 		for i in range(n):
 			s = []
