@@ -1,3 +1,5 @@
+import random
+import string
 import unittest
 
 from algorithms.sort import random_array
@@ -597,6 +599,115 @@ class OpenAddressHashTable(BaseSymbolTable):
 			i = (i + 1) % self._table_size
 
 
+class TrieNode:
+
+	def __init__(self, val, size):
+		self.val = val
+		self.next = [None for i in range(size)]
+
+
+class Trie(BaseSymbolTable):
+
+	def __init__(self, alphabet):
+		self._alphabet = {}
+		self._reverse_alphabet = {}
+		for i, v in enumerate(alphabet):
+			self._alphabet[v] = i
+			self._reverse_alphabet[i] = v
+		self._root = TrieNode(None, len(self._alphabet))
+		self._count = 0
+
+	def get(self, key, default=None):
+		node = self._recursive_get(self._root, key, 0)
+		val = node.val
+		if val is None:
+			val = default
+		return val
+
+	def values(self):
+		for k, v in self.items():
+			yield v
+
+	def keys(self):
+		for k, v in self.items():
+			yield k
+
+	def items(self):
+		yield from self._traversal_generator(self._root, "")
+
+	def copy(self):
+		result = Trie(self._reverse_alphabet.keys())
+		for k, v in self.items():
+			result[k] = v
+		return result
+
+	def clear(self):
+		self._root = TrieNode(None, len(self._alphabet))
+		self._count = 0
+
+	def with_prefix(self, prefix):
+		yield from self._traversal_generator(self._root, prefix)
+
+	def __delitem__(self, key):
+		self._recursive_delete(self._root, key, 0)
+
+	def __iter__(self):
+		return self.keys()
+
+	def __len__(self):
+		return self._count
+
+	def __setitem__(self, key, value):
+		self._root = self._recursive_put(self._root, key, 0, value)
+
+	def _recursive_get(self, node, key, index):
+		if node is None:
+			return None
+		if index == len(key):
+			return node
+		node = node.next[self._alphabet[key[index]]]
+		return self._recursive_get(node, key, index + 1)
+
+	def _recursive_put(self, node, key, index, val):
+		if node is None:
+			node = TrieNode(None, len(self._alphabet))
+		if index == len(key):
+			if node.val is None:
+				self._count += 1
+			node.val = val
+			return node
+		next_node = node.next[self._alphabet[key[index]]]
+		next_node = self._recursive_put(next_node, key, index + 1, val)
+		node.next[self._alphabet[key[index]]] = next_node
+		return node
+
+	def _traversal_generator(self, root, prefix):
+		if root is None:
+			return iter([])
+		if root.val is not None:
+			yield prefix, root.val
+		for i, n in enumerate(root.next):
+			yield from self._traversal_generator(n, prefix + self._reverse_alphabet[i])
+
+	def _recursive_delete(self, root, key, current):
+		if root is None:
+			return None
+		if current == len(key):
+			if root.val is not None:
+				self._count -= 1
+			root.val = None
+		else:
+			next_char = key[current]
+			index = self._alphabet[next_char]
+			self._recursive_delete(root.next[index], key, current + 1)
+		if root.val is not None:
+			return root
+		for i in root.next:
+			if i is not None:
+				return root
+		return None
+
+
 class DictionaryTest:
 
 	def test_frequency(self):
@@ -654,3 +765,31 @@ class StdDictTest(unittest.TestCase, DictionaryTest):
 
 	def get_dictionary(self):
 		return dict()
+
+
+class RegularTrieTest(unittest.TestCase):
+
+	def test_trie_symbol_table(self):
+		n = 100
+		charset = string.ascii_letters
+		strings = set()
+		for i in range(n):
+			s = []
+			for j in range(random.randint(0, 16)):
+				s.append(charset[random.randint(0, len(charset) - 1)])
+			strings.add("".join(s))
+		trie = Trie(charset)
+		for i in strings:
+			trie[i] = 1
+		for i in strings:
+			self.assertTrue(i in trie)
+		self.assertEqual(len(strings), len(trie))
+		copy = set(strings)
+		for i in copy:
+			strings.remove(i)
+			trie.pop(i)
+			for i in strings:
+				self.assertTrue(i in trie)
+			for i in trie:
+				self.assertTrue(i in strings)
+		self.assertEqual(0, len(trie))
